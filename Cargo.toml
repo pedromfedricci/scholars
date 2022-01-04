@@ -1,0 +1,46 @@
+[package]
+name = "scholars"
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.56.1"
+license = "MIT"
+readme = "README.md"
+
+description = "Semantic Scholar API client library and command line tool."
+repository = "https://github.com/pedromfedricci/scholars"
+documentation = "https://docs.rs/scholars"
+authors = ["Pedro de Matos Fedricci <pedromfedricci@gmail.com>"]
+
+categories = ["web-programming", "api-bindings"]
+keywords = ["semantic", "scholar", "research", "academic"]
+
+exclude = ["/json_schemes"]
+
+[features]
+default = ["v1", "reqwest", "blocking", "async"]
+v1 = []
+async = ["async-trait", "futures-util"]
+blocking = ["reqwest/blocking"]
+
+[dependencies]
+bytes = { version = "1.0" }
+form_urlencoded = { version = "1.0" }
+http = { version = "0.2" }
+log = { version = "0.4" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0" }
+serde_urlencoded = { version = "0.7" }
+serde_with = { version = "1.0" }
+thiserror = { version = "1.0" }
+url = { version = "2.0" }
+
+# Optional
+async-trait = { version = "0.1", optional = true }
+reqwest = { version = "0.11", optional = true }
+futures-util = { version = "0.3", default-features = false, optional = true }
+
+[dev-dependencies]
+anyhow = { version = "1.0" }
+serde_test = { version = "1.0" }
+tokio = { version = "1.4", features = ["macros", "rt-multi-thread"] }
+env_logger = { version = "0.9" }
