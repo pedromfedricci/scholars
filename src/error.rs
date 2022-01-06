@@ -11,11 +11,7 @@ pub enum ApiError<E: Error, C: Error> {
 
     /// The API returned an error object.
     #[error("response returned a error: {source}")]
-    Response {
-        source: E,
-        status: StatusCode,
-        url: String,
-    },
+    Response { source: E, status: StatusCode, url: String },
 
     /// The URL failed to parse.
     #[error("failed to parse url: {source}")]
@@ -49,11 +45,8 @@ pub enum ApiError<E: Error, C: Error> {
 }
 
 impl<C: Error, E: Error> ApiError<E, C> {
-    pub(crate) fn data_type<T>(source: serde_json::Error) -> Self {
-        ApiError::DataType {
-            source,
-            typename: any::type_name::<T>(),
-        }
+    pub fn data_type<T>(source: serde_json::Error) -> Self {
+        ApiError::DataType { source, typename: any::type_name::<T>() }
     }
 
     /// Create an API error in a client error.
@@ -63,10 +56,6 @@ impl<C: Error, E: Error> ApiError<E, C> {
 
     /// Create an API error for a respnse error.
     pub fn from_response(source: E, status: StatusCode, url: Url) -> Self {
-        ApiError::Response {
-            source,
-            status,
-            url: url.to_string(),
-        }
+        ApiError::Response { source, status, url: url.to_string() }
     }
 }

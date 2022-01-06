@@ -9,9 +9,7 @@ pub struct UrlEncodedQuery<'a> {
 
 impl Default for UrlEncodedQuery<'_> {
     fn default() -> Self {
-        Self {
-            urlencoded: form_urlencoded::Serializer::new(String::new()),
-        }
+        Self { urlencoded: form_urlencoded::Serializer::new(String::new()) }
     }
 }
 
@@ -31,9 +29,7 @@ impl UrlEncodedQuery<'_> {
     /// Create a new URL encoded query with initial, serializable value.
     pub fn with(value: &impl Serialize) -> Self {
         let mut urlencoded = Self::new();
-        value
-            .serialize(urlencoded.serializer())
-            .expect("serialize value with serde::Serializer");
+        value.serialize(urlencoded.serializer()).expect("serialize value with serde::Serializer");
         urlencoded
     }
 
