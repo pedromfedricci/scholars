@@ -1,5 +1,6 @@
-use http::StatusCode;
 use std::{any, error::Error};
+
+use http::StatusCode;
 use url::Url;
 
 #[derive(Debug, thiserror::Error)]
