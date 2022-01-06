@@ -41,22 +41,36 @@ pub enum ApiError<E: Error, C: Error> {
         /// The source of the error.
         source: serde_json::Error,
         /// The name of the type that could not be deserialized.
+        /// This is meant for diagnostic only,
+        /// see [`std::any::type_name`] for more information.
         typename: &'static str,
     },
 }
 
 impl<C: Error, E: Error> ApiError<E, C> {
-    pub fn data_type<T>(source: serde_json::Error) -> Self {
+    /// Create an [`ApiError`] from [`serde_json::Error`] when
+    /// [`serde_json`] fails to deserialize JSON value.
+    pub fn from_data_type<T>(source: serde_json::Error) -> Self {
         ApiError::DataType { source, typename: any::type_name::<T>() }
     }
 
-    /// Create an API error in a client error.
+    /// Create an [`ApiError`] from a client error.
     pub fn from_client(source: C) -> Self {
         ApiError::Client { source }
     }
 
-    /// Create an API error for a respnse error.
+    /// Create an [`ApiError`] from a response error.
     pub fn from_response(source: E, status: StatusCode, url: Url) -> Self {
         ApiError::Response { source, status, url: url.to_string() }
+    }
+
+    /// Create an [`ApiError`] from a [`http::Error`].
+    pub fn from_http(source: http::Error) -> Self {
+        ApiError::Http { source }
+    }
+
+    /// Create an [`ApiError`] from a [`serde_json::Error`]
+    pub fn from_json(source: serde_json::Error) -> Self {
+        ApiError::Json { source }
     }
 }

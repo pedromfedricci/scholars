@@ -97,5 +97,5 @@ where
         let err = serde_json::from_value::<E::Error>(value)?;
         return Err(ApiError::from_response(err, status, url));
     }
-    serde_json::from_value::<T>(value).map_err(ApiError::data_type::<T>)
+    serde_json::from_value::<T>(value).map_err(ApiError::from_data_type::<T>)
 }
