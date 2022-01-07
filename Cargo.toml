@@ -16,11 +16,15 @@ keywords = ["semantic", "scholar", "research", "academic"]
 
 exclude = ["/json_schemes"]
 
+[profile.release]
+lto = true
+
 [features]
-default = ["v1", "reqwest", "blocking", "async"]
 v1 = []
 async = ["async-trait", "futures-util"]
-blocking = ["reqwest/blocking"]
+blocking = []
+reqwest-async = ["reqwest", "async"]
+reqwest-blocking = ["reqwest/blocking", "blocking"]
 
 [dependencies]
 bytes = { version = "1.0" }
