@@ -1,4 +1,4 @@
-# A Rust client library implementation for the Semantic Scholar API
+# A Rust client library for the Semantic Scholar API.
 
 This is a WIP.
 
