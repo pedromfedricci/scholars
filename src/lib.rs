@@ -1,5 +1,5 @@
 #[macro_use]
-mod macros;
+mod static_url;
 
 #[cfg(any(feature = "blocking", feature = "async"))]
 pub mod client;
