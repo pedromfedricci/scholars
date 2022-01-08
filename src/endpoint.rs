@@ -60,7 +60,7 @@ where
 /// Converts [`url::Url`] into [`http::Uri`].
 #[inline]
 fn url_to_http_uri(url: &Url) -> Uri {
-    url.as_str().parse().expect("parse a url::Url as an http::Uri")
+    url.as_str().parse().expect("a parsed `Url` must be a valid `Uri`")
 }
 
 /// Gets the Endpoint's [`Url`] and creates the request [`Builder`].
