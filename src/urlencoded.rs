@@ -1,5 +1,6 @@
-use serde::Serialize;
 use std::borrow::Borrow;
+
+use serde::Serialize;
 use url::Url;
 
 /// A struct that represents a URL encoded query string.
@@ -26,11 +27,11 @@ impl UrlEncodedQuery<'_> {
         Self::default()
     }
 
-    /// Create a new URL encoded query with initial, serializable value.
-    pub fn with(value: &impl Serialize) -> Self {
+    /// Create a new URL encoded query from a initial, serializable value.
+    pub fn with(value: &impl Serialize) -> Result<Self, serde_urlencoded::ser::Error> {
         let mut urlencoded = Self::new();
-        value.serialize(urlencoded.serializer()).expect("serialize value with serde::Serializer");
-        urlencoded
+        value.serialize(urlencoded.serializer())?;
+        Ok(urlencoded)
     }
 
     /// Set an [`Url`] by consuming [`UrlEncodedQuery`] and serilazing
