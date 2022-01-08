@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use bytes::Bytes;
+use http::{header::HeaderName, HeaderValue};
 
 use crate::error::ApiError;
 
@@ -29,11 +30,11 @@ impl<E: Error> From<ClientError> for ApiError<E, ClientError> {
 }
 
 /// Implements `BaseClient` for a type that will hold
-/// a `ClientError` as the associated type for named `Error`.
+/// a `ClientError` as the associated type for `BaseClient::Error`.
 /// Implemented for both `reqwest::Client` and `reqwest::blocking::Client`.
 macro_rules! base_client_impl {
     ($t:ty) => {
-        use $crate::client::BaseClient;
+        use $crate::{client::BaseClient, reqwest::ClientError};
 
         impl BaseClient for $t {
             type Error = ClientError;
@@ -45,33 +46,39 @@ macro_rules! base_client_impl {
     };
 }
 
-/// Converts either a `reqwest::Request` or
-/// `reqwest::blocking::Request` into a `http::Request`.
-/// Any error encountered is simply bubbled up.
-macro_rules! convert_request_type {
-    ($reqwest_req:ident, $body:ident) => {{
-        let http_req = $reqwest_req.body($body)?;
-        http_req.try_into()?
-    }};
+/// Helper function that tries to convert a [`http::Request`] into some type `T`.
+/// This is used to convert [`http::Request`] into either async or blocking [`reqwest`] Request.
+#[inline]
+fn convert_from_http_request<T, R>(
+    builder: http::request::Builder,
+    body: T,
+) -> Result<R, ClientError>
+where
+    R: TryFrom<http::Request<T>>,
+    ClientError: From<<R as TryFrom<http::Request<T>>>::Error>,
+{
+    Ok(R::try_from(builder.body(body)?)?)
 }
 
-/// Converts either a `reqwest::Response` or
-/// `reqwest::blocking::Response` into a `http::Response`.
-macro_rules! convert_response_type {
-    ($reqwest_rsp:ident) => {{
-        let mut http_rsp =
-            http::Response::builder().status($reqwest_rsp.status()).version($reqwest_rsp.version());
-        let headers = http_rsp.headers_mut();
-        if let Some(headers) = headers {
-            for (key, value) in $reqwest_rsp.headers() {
-                headers.insert(key, value.clone());
-            }
+/// Helper function that constructs a [`http::Response`] from head parts.
+/// This is used to convert either a async or blocking [`reqwest`] Response into a [`http::Response`].
+#[inline]
+fn convert_to_http_response<'a>(
+    headers: impl IntoIterator<Item = (&'a HeaderName, &'a HeaderValue)>,
+    status: http::StatusCode,
+    version: http::Version,
+) -> http::response::Builder {
+    let mut rsp = http::Response::builder().status(status).version(version);
+    if let Some(rsp_hdrs) = rsp.headers_mut() {
+        for (name, value) in headers {
+            rsp_hdrs.insert(name, value.clone());
         }
-        http_rsp
-    }};
+    }
+    rsp
 }
 
-/// Implements [`BaseClient`] and [`Client`] for [`reqwest::blocking::Client`].
+/// Implements [`crate::client::BaseClient`] and
+/// [`crate::client::Client`] for [`reqwest::blocking::Client`].
 #[cfg(feature = "reqwest-blocking")]
 mod blocking {
     use super::*;
@@ -85,17 +92,15 @@ mod blocking {
             builder: http::request::Builder,
             body: Vec<u8>,
         ) -> Result<http::Response<Bytes>, Self::Error> {
-            let reqwest_rsp = {
-                let reqwest_req = convert_request_type!(builder, body);
-                self.execute(reqwest_req)?
-            };
-            let http_rsp = convert_response_type!(reqwest_rsp);
-            Ok(http_rsp.body(reqwest_rsp.bytes()?)?)
+            let rsp = self.execute(convert_from_http_request(builder, body)?)?;
+            let http_rsp = convert_to_http_response(rsp.headers(), rsp.status(), rsp.version());
+            Ok(http_rsp.body(rsp.bytes()?)?)
         }
     }
 }
 
-/// Implements [`BaseClient`] and [`AsyncClient`] for [`reqwest::Client`].
+/// Implements [`crate::client::BaseClient`] and
+/// [`crate::client::AsyncClient`] for [`reqwest::Client`].
 #[cfg(feature = "reqwest-async")]
 mod r#async {
     use super::*;
@@ -111,12 +116,9 @@ mod r#async {
             builder: http::request::Builder,
             body: Vec<u8>,
         ) -> Result<http::Response<Bytes>, Self::Error> {
-            let reqwest_rsp = {
-                let reqwest_req = convert_request_type!(builder, body);
-                self.execute(reqwest_req).await?
-            };
-            let http_rsp = convert_response_type!(reqwest_rsp);
-            Ok(http_rsp.body(reqwest_rsp.bytes().await?)?)
+            let rsp = self.execute(convert_from_http_request(builder, body)?).await?;
+            let http_rsp = convert_to_http_response(rsp.headers(), rsp.status(), rsp.version());
+            Ok(http_rsp.body(rsp.bytes().await?)?)
         }
     }
 }
