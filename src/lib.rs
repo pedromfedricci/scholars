@@ -1,6 +1,9 @@
 #[macro_use]
 mod static_url;
 
+#[cfg(feature = "v1")]
+pub mod v1;
+
 #[cfg(any(feature = "blocking", feature = "async"))]
 pub mod client;
 #[cfg(any(feature = "blocking", feature = "async"))]
