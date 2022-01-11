@@ -63,11 +63,9 @@ impl UrlEncodedQuery<'_> {
 
     /// Serialize and append a number of name/value pairs.
     ///
-    /// This simply calls [`append_pair`] repeatedly.
+    /// This simply calls `append_pair` repeatedly.
     /// This can be more convenient, so the user doesn’t need to introduce a block
-    /// to limit the scope of `Serializer`'s borrow of its string.
-    ///
-    /// [`append_pair`]: UrlEncodedQuery::append_pair
+    /// to limit the scope of [`Serializer`]'s borrow of its string.
     pub fn extend_pairs<I, K, V>(&mut self, iter: I) -> &mut Self
     where
         I: IntoIterator,
@@ -81,11 +79,9 @@ impl UrlEncodedQuery<'_> {
 
     /// Serialize and append a number of names without values.
     ///
-    /// This simply calls [`append_key_only`] repeatedly.
+    /// This simply calls `append_key_only` repeatedly.
     /// This can be more convenient, so the user doesn’t need to introduce
     /// a block to limit the scope of `Serializer`'s borrow of its string.
-    ///
-    /// [`append_key_only`]: UrlEncodedQuery::append_key_only
     pub fn extend_keys_only<I, K>(&mut self, iter: I) -> &mut Self
     where
         I: IntoIterator,

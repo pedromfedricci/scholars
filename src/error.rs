@@ -35,6 +35,13 @@ pub enum ApiError<E: Error, C: Error> {
         source: http::Error,
     },
 
+    /// application/x-www-form-urlencoded serialization error.
+    #[error("`serde_urlencoded` error: {source}")]
+    UrlEncoded {
+        #[from]
+        source: serde_urlencoded::ser::Error,
+    },
+
     /// Failed to parse an expected data type from JSON.
     #[error("could not parse {typename} data from JSON: {source}")]
     DataType {

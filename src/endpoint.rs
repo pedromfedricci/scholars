@@ -3,6 +3,7 @@ use std::error::Error;
 use bytes::Bytes;
 use http::{request::Builder, Method, Request, Response, Uri};
 use serde::de::DeserializeOwned;
+use serde_urlencoded::ser::Error as UrlEncodedError;
 use url::Url;
 
 use crate::{client::BaseClient, error::ApiError, urlencoded::UrlEncodedQuery};
@@ -19,7 +20,7 @@ pub trait Endpoint {
     fn endpoint(&self) -> &str;
 
     /// URL query string for the endpoint.
-    fn query_params(&self) -> UrlEncodedQuery;
+    fn query_params(&self) -> Result<UrlEncodedQuery<'_>, UrlEncodedError>;
 }
 
 #[cfg(feature = "blocking")]
@@ -74,8 +75,8 @@ where
     C: BaseClient,
 {
     let mut url = client.endpoint(endpoint.endpoint())?;
-    endpoint.query_params().set_url(&mut url);
-    log::debug!("querying endpoint at: {}", url.as_str());
+    endpoint.query_params()?.set_url(&mut url);
+    log::debug!("querying Semantic Scholar API at {}", url.as_str());
     let builder = Request::builder().method(endpoint.method()).uri(url_to_http_uri(&url));
     Ok((builder, url))
 }
