@@ -14,17 +14,18 @@ authors = ["Pedro de Matos Fedricci <pedromfedricci@gmail.com>"]
 categories = ["web-programming", "api-bindings"]
 keywords = ["semantic", "scholar", "research", "academic"]
 
-exclude = ["/json_schemes"]
+exclude = ["/json_schemes", "/.github/", "/rustfmt.toml", "/.gitignore"]
 
 [profile.release]
 lto = true
 
 [features]
-v1 = []
+v1 = ["__v"]
 async = ["async-trait", "futures-util"]
 blocking = []
 reqwest-async = ["reqwest", "async"]
 reqwest-blocking = ["reqwest/blocking", "blocking"]
+__v = []
 
 [dependencies]
 bytes = { version = "1.0" }
@@ -48,3 +49,47 @@ anyhow = { version = "1.0" }
 serde_test = { version = "1.0" }
 tokio = { version = "1.4", features = ["macros", "rt-multi-thread"] }
 env_logger = { version = "0.9" }
+
+# Examples
+
+# Blocking examples
+[[example]]
+name = "author_blocking_query"
+required-features = ["v1", "reqwest-blocking"]
+
+[[example]]
+name = "author_papers_blocking_paged"
+required-features = ["v1", "reqwest-blocking"]
+
+[[example]]
+name = "paper_authors_blocking_paged"
+required-features = ["v1", "reqwest-blocking"]
+
+[[example]]
+name = "paper_blocking_query"
+required-features = ["v1", "reqwest-blocking"]
+
+[[example]]
+name = "paper_citations_blocking_paged"
+required-features = ["v1", "reqwest-blocking"]
+
+[[example]]
+name = "paper_references_blocking_paged"
+required-features = ["v1", "reqwest-blocking"]
+
+[[example]]
+name = "paper_search_blocking_paged"
+required-features = ["v1", "reqwest-blocking"]
+
+[[example]]
+name = "paper_search_blocking_query"
+required-features = ["v1", "reqwest-blocking"]
+
+# Async examples
+[[example]]
+name = "paper_search_async_paged"
+required-features = ["v1", "reqwest-async"]
+
+[[example]]
+name = "paper_search_async_query"
+required-features = ["v1", "reqwest-async"]

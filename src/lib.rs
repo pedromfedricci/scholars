@@ -3,6 +3,9 @@
 #[macro_use]
 mod static_url;
 
+#[cfg(feature = "__v")]
+pub(crate) mod serialize;
+
 #[cfg(feature = "v1")]
 pub mod v1;
 
