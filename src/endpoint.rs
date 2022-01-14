@@ -9,7 +9,7 @@ use url::Url;
 use crate::{client::BaseClient, error::ApiError, urlencoded::UrlEncodedQuery};
 
 /// A trait for providing the necessary information for a single REST API endpoint.
-pub trait Endpoint {
+pub(crate) trait Endpoint {
     /// An error type that can be returned by the endpoint.
     type Error: Error;
 
@@ -21,41 +21,6 @@ pub trait Endpoint {
 
     /// URL query string for the endpoint.
     fn query_params(&self) -> Result<UrlEncodedQuery<'_>, UrlEncodedError>;
-}
-
-#[cfg(feature = "blocking")]
-use crate::{client::Client, query::Query};
-
-#[cfg(feature = "blocking")]
-impl<T, E: Endpoint, C: Client> Query<T, E, C> for E
-where
-    T: DeserializeOwned,
-    E::Error: DeserializeOwned,
-    ApiError<E::Error, C::Error>: From<C::Error>,
-{
-    fn query(&self, client: &C) -> Result<T, ApiError<E::Error, C::Error>> {
-        let (req, url) = build_request(self, client)?;
-        let rsp = client.send(req, vec![])?;
-        serialize_response::<T, E, C>(rsp, url)
-    }
-}
-
-#[cfg(feature = "async")]
-use crate::{client::AsyncClient, query::AsyncQuery};
-
-#[cfg(feature = "async")]
-#[async_trait::async_trait]
-impl<T, E: Endpoint + Sync, C: AsyncClient + Sync> AsyncQuery<T, E, C> for E
-where
-    T: DeserializeOwned,
-    E::Error: DeserializeOwned,
-    ApiError<E::Error, C::Error>: From<C::Error>,
-{
-    async fn query_async(&self, client: &C) -> Result<T, ApiError<E::Error, C::Error>> {
-        let (req, url) = build_request(self, client)?;
-        let rsp = client.send(req, vec![]).await?;
-        serialize_response::<T, E, C>(rsp, url)
-    }
 }
 
 /// Converts [`url::Url`] into [`http::Uri`].
@@ -99,4 +64,43 @@ where
         return Err(ApiError::from_response(err, status, url));
     }
     serde_json::from_value::<T>(value).map_err(ApiError::from_data_type::<T>)
+}
+
+#[cfg(feature = "blocking")]
+mod blocking {
+    use super::*;
+    use crate::{client::Client, query::Query};
+
+    impl<T, E: Endpoint, C: Client> Query<T, E, C> for E
+    where
+        T: DeserializeOwned,
+        E::Error: DeserializeOwned,
+        ApiError<E::Error, C::Error>: From<C::Error>,
+    {
+        fn query(&self, client: &C) -> Result<T, ApiError<E::Error, C::Error>> {
+            let (req, url) = build_request(self, client)?;
+            let rsp = client.send(req, vec![])?;
+            serialize_response::<T, E, C>(rsp, url)
+        }
+    }
+}
+
+#[cfg(feature = "async")]
+mod r#async {
+    use super::*;
+    use crate::{client::AsyncClient, query::AsyncQuery};
+
+    #[async_trait::async_trait]
+    impl<T, E: Endpoint + Sync, C: AsyncClient + Sync> AsyncQuery<T, E, C> for E
+    where
+        T: DeserializeOwned,
+        E::Error: DeserializeOwned,
+        ApiError<E::Error, C::Error>: From<C::Error>,
+    {
+        async fn query_async(&self, client: &C) -> Result<T, ApiError<E::Error, C::Error>> {
+            let (req, url) = build_request(self, client)?;
+            let rsp = client.send(req, vec![]).await?;
+            serialize_response::<T, E, C>(rsp, url)
+        }
+    }
 }

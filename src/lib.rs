@@ -7,7 +7,7 @@ mod static_url;
 #[cfg(feature = "__v")]
 pub(crate) mod serialize;
 #[cfg(feature = "__v")]
-pub mod urlencoded;
+pub(crate) mod urlencoded;
 
 #[cfg(feature = "v1")]
 pub mod v1;
@@ -15,9 +15,9 @@ pub mod v1;
 #[cfg(any(feature = "blocking", feature = "async"))]
 pub mod client;
 #[cfg(any(feature = "blocking", feature = "async"))]
-pub mod endpoint;
+pub(crate) mod endpoint;
 #[cfg(any(feature = "blocking", feature = "async"))]
-pub mod query;
+pub(crate) mod query;
 
 #[cfg(any(feature = "reqwest-async", feature = "reqwest-blocking"))]
 pub mod reqwest;
