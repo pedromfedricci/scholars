@@ -1,3 +1,4 @@
+#[cfg(any(feature = "blocking", feature = "async"))]
 #[macro_use]
 mod static_url;
 

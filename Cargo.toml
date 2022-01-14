@@ -21,8 +21,8 @@ lto = true
 
 [features]
 v1 = ["__v"]
-async = ["async-trait", "futures-util"]
-blocking = []
+async = ["__v", "async-trait", "futures-util"]
+blocking = ["__v"]
 reqwest-async = ["reqwest", "async"]
 reqwest-blocking = ["reqwest/blocking", "blocking"]
 __v = []
