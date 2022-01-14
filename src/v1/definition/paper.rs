@@ -1,12 +1,12 @@
-use super::author::{Author, AuthorInfo};
-use super::batch::Batch;
-use super::embedding::Embedding;
-use super::tldr::Tldr;
-
 use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, skip_serializing_none};
+
+use super::author::{Author, AuthorInfo};
+use super::batch::Batch;
+use super::embedding::Embedding;
+use super::tldr::Tldr;
 
 pub type PaperBatch = Batch<PaperWithLinks>;
 pub type PaperSearchBatch = Batch<BasePaper>;
@@ -34,6 +34,24 @@ pub struct PaperInfo {
     pub authors: Option<HashSet<AuthorInfo>>,
 }
 
+impl From<BasePaper> for PaperInfo {
+    fn from(paper: BasePaper) -> PaperInfo {
+        paper.info
+    }
+}
+
+impl From<PaperWithLinks> for PaperInfo {
+    fn from(paper: PaperWithLinks) -> PaperInfo {
+        paper.base.info
+    }
+}
+
+impl From<FullPaper> for PaperInfo {
+    fn from(paper: FullPaper) -> PaperInfo {
+        paper.base.info
+    }
+}
+
 #[serde_as]
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -58,6 +76,18 @@ pub struct BasePaper {
     pub is_open_access: Option<bool>,
     // A list of high-level academic categories.
     pub fields_of_study: Option<HashSet<String>>,
+}
+
+impl From<PaperWithLinks> for BasePaper {
+    fn from(paper: PaperWithLinks) -> BasePaper {
+        paper.base
+    }
+}
+
+impl From<FullPaper> for BasePaper {
+    fn from(paper: FullPaper) -> BasePaper {
+        paper.base
+    }
 }
 
 #[serde_as]

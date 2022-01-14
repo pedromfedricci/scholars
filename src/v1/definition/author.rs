@@ -1,9 +1,9 @@
-use super::{batch::Batch, paper::BasePaper};
-
 use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, skip_serializing_none};
+
+use super::{batch::Batch, paper::BasePaper};
 
 pub type AuthorBatch = Batch<AuthorWithPapers>;
 
@@ -22,6 +22,12 @@ pub struct AuthorInfo {
 impl From<Author> for AuthorInfo {
     fn from(author: Author) -> AuthorInfo {
         author.info
+    }
+}
+
+impl From<AuthorWithPapers> for AuthorInfo {
+    fn from(author: AuthorWithPapers) -> AuthorInfo {
+        author.author.info
     }
 }
 
