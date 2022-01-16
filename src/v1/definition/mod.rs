@@ -1,7 +1,7 @@
 mod author;
 pub use author::*;
 mod batch;
-pub use batch::*;
+pub(in crate::v1) use batch::*;
 mod citation;
 pub use citation::*;
 mod embedding;
