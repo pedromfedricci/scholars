@@ -3,12 +3,11 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, skip_serializing_none};
 
-use super::{batch::Batch, paper::BasePaper};
-
-pub type AuthorBatch = Batch<AuthorWithPapers>;
+use super::batch::{Batch, SearchBatch};
+use super::paper::BasePaper;
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", default)]
 pub struct AuthorInfo {
     // Author's ID in Semantic Scholar.
     // authorId field is always included in the response.
@@ -83,4 +82,46 @@ pub struct AuthorWithPapers {
     #[serde(flatten)]
     pub author: Author,
     pub papers: Option<Vec<BasePaper>>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AuthorBatch(Batch<AuthorWithPapers>);
+
+impl AuthorBatch {
+    pub fn get_offset(&self) -> u64 {
+        self.0.offset
+    }
+
+    pub fn get_next(&self) -> Option<u64> {
+        self.0.next
+    }
+}
+
+impl From<AuthorBatch> for Vec<AuthorWithPapers> {
+    fn from(batch: AuthorBatch) -> Vec<AuthorWithPapers> {
+        Vec::from(batch.0)
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct AuthorSearchBatch(SearchBatch<AuthorWithPapers>);
+
+impl AuthorSearchBatch {
+    pub fn get_offset(&self) -> u64 {
+        self.0.batch.offset
+    }
+
+    pub fn get_next(&self) -> Option<u64> {
+        self.0.batch.next
+    }
+
+    pub fn get_total(&self) -> u64 {
+        self.0.total
+    }
+}
+
+impl From<AuthorSearchBatch> for Vec<AuthorWithPapers> {
+    fn from(batch: AuthorSearchBatch) -> Vec<AuthorWithPapers> {
+        Vec::from(batch.0)
+    }
 }

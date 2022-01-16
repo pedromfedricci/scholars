@@ -5,8 +5,6 @@ use serde_with::{serde_as, skip_serializing_none};
 
 use super::{batch::Batch, paper::BasePaper};
 
-pub type CitationBatch = Batch<Citation>;
-
 #[serde_as]
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -20,4 +18,23 @@ pub struct Citation {
     pub intents: Option<HashSet<String>>,
     // See: https://www.semanticscholar.org/faq#influential-citations.
     pub is_influential: Option<bool>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CitationBatch(Batch<Citation>);
+
+impl CitationBatch {
+    pub fn get_offset(&self) -> u64 {
+        self.0.offset
+    }
+
+    pub fn get_next(&self) -> Option<u64> {
+        self.0.next
+    }
+}
+
+impl From<CitationBatch> for Vec<Citation> {
+    fn from(batch: CitationBatch) -> Vec<Citation> {
+        Vec::from(batch.0)
+    }
 }

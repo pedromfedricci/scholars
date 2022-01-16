@@ -4,12 +4,9 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, skip_serializing_none};
 
 use super::author::{Author, AuthorInfo};
-use super::batch::Batch;
+use super::batch::{Batch, SearchBatch};
 use super::embedding::Embedding;
 use super::tldr::Tldr;
-
-pub type PaperBatch = Batch<PaperWithLinks>;
-pub type PaperSearchBatch = Batch<BasePaper>;
 
 #[serde_as]
 #[skip_serializing_none]
@@ -93,6 +90,7 @@ impl From<FullPaper> for BasePaper {
 #[serde_as]
 #[skip_serializing_none]
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(default)]
 pub struct PaperExternalId {
     #[serde(rename = "ArXiv")]
     pub ar_xiv: Option<String>,
@@ -116,7 +114,7 @@ pub struct PaperExternalId {
 
 #[serde_as]
 #[skip_serializing_none]
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PaperWithLinks {
     #[serde(flatten)]
@@ -138,4 +136,46 @@ pub struct FullPaper {
     pub references: Vec<PaperInfo>,
     pub embedding: Option<Embedding>,
     pub tldr: Option<Tldr>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct PaperBatch(Batch<PaperWithLinks>);
+
+impl PaperBatch {
+    pub fn get_offset(&self) -> u64 {
+        self.0.offset
+    }
+
+    pub fn get_next(&self) -> Option<u64> {
+        self.0.next
+    }
+}
+
+impl From<PaperBatch> for Vec<PaperWithLinks> {
+    fn from(batch: PaperBatch) -> Vec<PaperWithLinks> {
+        Vec::from(batch.0)
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct PaperSearchBatch(SearchBatch<BasePaper>);
+
+impl PaperSearchBatch {
+    pub fn get_offset(&self) -> u64 {
+        self.0.batch.offset
+    }
+
+    pub fn get_next(&self) -> Option<u64> {
+        self.0.batch.next
+    }
+
+    pub fn get_total(&self) -> u64 {
+        self.0.total
+    }
+}
+
+impl From<PaperSearchBatch> for Vec<BasePaper> {
+    fn from(batch: PaperSearchBatch) -> Vec<BasePaper> {
+        Vec::from(batch.0)
+    }
 }
