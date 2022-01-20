@@ -21,9 +21,9 @@ pub struct Reference {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-pub struct ReferenceBatch(Batch<Reference>);
+pub struct ReferenceBatch<T = Reference>(Batch<T>);
 
-impl ReferenceBatch {
+impl<T> ReferenceBatch<T> {
     pub fn get_offset(&self) -> u64 {
         self.0.offset
     }
@@ -33,8 +33,20 @@ impl ReferenceBatch {
     }
 }
 
-impl From<ReferenceBatch> for Vec<Reference> {
-    fn from(batch: ReferenceBatch) -> Vec<Reference> {
+impl<T> From<ReferenceBatch<T>> for Vec<T>
+where
+    T: From<Reference>,
+{
+    fn from(batch: ReferenceBatch<T>) -> Vec<T> {
         Vec::from(batch.0)
+    }
+}
+
+impl<T> AsRef<[T]> for ReferenceBatch<T>
+where
+    T: From<Reference>,
+{
+    fn as_ref(&self) -> &[T] {
+        self.0.as_ref()
     }
 }

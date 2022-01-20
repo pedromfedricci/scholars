@@ -21,9 +21,9 @@ pub struct Citation {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-pub struct CitationBatch(Batch<Citation>);
+pub struct CitationBatch<T = Citation>(Batch<T>);
 
-impl CitationBatch {
+impl<T> CitationBatch<T> {
     pub fn get_offset(&self) -> u64 {
         self.0.offset
     }
@@ -33,8 +33,20 @@ impl CitationBatch {
     }
 }
 
-impl From<CitationBatch> for Vec<Citation> {
-    fn from(batch: CitationBatch) -> Vec<Citation> {
+impl<T> From<CitationBatch<T>> for Vec<T>
+where
+    T: From<Citation>,
+{
+    fn from(batch: CitationBatch<T>) -> Vec<T> {
         Vec::from(batch.0)
+    }
+}
+
+impl<T> AsRef<[T]> for CitationBatch<T>
+where
+    T: From<Citation>,
+{
+    fn as_ref(&self) -> &[T] {
+        self.0.as_ref()
     }
 }

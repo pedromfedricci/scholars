@@ -139,9 +139,9 @@ pub struct FullPaper {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-pub struct PaperBatch(Batch<PaperWithLinks>);
+pub struct PaperBatch<T = PaperWithLinks>(Batch<T>);
 
-impl PaperBatch {
+impl<T> PaperBatch<T> {
     pub fn get_offset(&self) -> u64 {
         self.0.offset
     }
@@ -151,16 +151,28 @@ impl PaperBatch {
     }
 }
 
-impl From<PaperBatch> for Vec<PaperWithLinks> {
-    fn from(batch: PaperBatch) -> Vec<PaperWithLinks> {
+impl<T> From<PaperBatch<T>> for Vec<T>
+where
+    T: From<PaperWithLinks>,
+{
+    fn from(batch: PaperBatch<T>) -> Vec<T> {
         Vec::from(batch.0)
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-pub struct PaperSearchBatch(SearchBatch<BasePaper>);
+impl<T> AsRef<[T]> for PaperBatch<T>
+where
+    T: From<PaperWithLinks>,
+{
+    fn as_ref(&self) -> &[T] {
+        self.0.as_ref()
+    }
+}
 
-impl PaperSearchBatch {
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct PaperSearchBatch<T = BasePaper>(SearchBatch<T>);
+
+impl<T> PaperSearchBatch<T> {
     pub fn get_offset(&self) -> u64 {
         self.0.batch.offset
     }
@@ -174,8 +186,20 @@ impl PaperSearchBatch {
     }
 }
 
-impl From<PaperSearchBatch> for Vec<BasePaper> {
-    fn from(batch: PaperSearchBatch) -> Vec<BasePaper> {
+impl<T> From<PaperSearchBatch<T>> for Vec<T>
+where
+    T: From<BasePaper>,
+{
+    fn from(batch: PaperSearchBatch<T>) -> Vec<T> {
         Vec::from(batch.0)
+    }
+}
+
+impl<T> AsRef<[T]> for PaperSearchBatch<T>
+where
+    T: From<BasePaper>,
+{
+    fn as_ref(&self) -> &[T] {
+        self.0.as_ref()
     }
 }
