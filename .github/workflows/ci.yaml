@@ -33,7 +33,7 @@ jobs:
           command: fmt
           args: --all -- --check
 
-  clippy:
+  linter:
     name: Code linter
     runs-on: ubuntu-latest
 
@@ -61,4 +61,4 @@ jobs:
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: -- -D warnings
+          args: --all-features -- -D warnings
