@@ -1,6 +1,9 @@
 mod iter;
 use iter::*;
 
+mod author;
+pub use author::*;
+
 use http::Method;
 use serde::Serialize;
 use serde_urlencoded::ser::Error as UrlEncodedError;

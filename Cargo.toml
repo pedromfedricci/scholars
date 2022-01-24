@@ -49,3 +49,15 @@ anyhow = { version = "1.0" }
 serde_test = { version = "1.0" }
 tokio = { version = "1.4", features = ["macros", "rt-multi-thread"] }
 env_logger = { version = "0.9" }
+
+# Examples
+
+# Blocking examples
+[[example]]
+name = "author_blocking_query"
+required-features = ["v1", "reqwest-blocking"]
+
+# Async examples
+[[example]]
+name = "author_async_query"
+required-features = ["v1", "reqwest-async"]
