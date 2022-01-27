@@ -65,6 +65,18 @@ required-features = ["v1", "reqwest-blocking"]
 name = "author_search_blocking_paged"
 required-features = ["v1", "reqwest-blocking"]
 
+[[example]]
+name = "paper_blocking_query"
+required-features = ["v1", "reqwest-blocking"]
+
+[[example]]
+name = "paper_search_blocking_paged"
+required-features = ["v1", "reqwest-blocking"]
+
+[[example]]
+name = "paper_search_blocking_query"
+required-features = ["v1", "reqwest-blocking"]
+
 # Async examples
 [[example]]
 name = "author_async_query"
@@ -76,4 +88,16 @@ required-features = ["v1", "reqwest-async"]
 
 [[example]]
 name = "author_search_async_paged"
+required-features = ["v1", "reqwest-async"]
+
+[[example]]
+name = "paper_async_query"
+required-features = ["v1", "reqwest-async"]
+
+[[example]]
+name = "paper_search_async_paged"
+required-features = ["v1", "reqwest-async"]
+
+[[example]]
+name = "paper_search_async_query"
 required-features = ["v1", "reqwest-async"]
