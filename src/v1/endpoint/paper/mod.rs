@@ -1,3 +1,6 @@
+mod search;
+pub use search::*;
+
 use serde::de::DeserializeOwned;
 
 use crate::client::BaseClient;
