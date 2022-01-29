@@ -66,6 +66,10 @@ name = "author_search_blocking_paged"
 required-features = ["v1", "reqwest-blocking"]
 
 [[example]]
+name = "paper_authors_blocking_paged"
+required-features = ["v1", "reqwest-blocking"]
+
+[[example]]
 name = "paper_blocking_query"
 required-features = ["v1", "reqwest-blocking"]
 
@@ -92,6 +96,10 @@ required-features = ["v1", "reqwest-async"]
 
 [[example]]
 name = "paper_async_query"
+required-features = ["v1", "reqwest-async"]
+
+[[example]]
+name = "paper_authors_async_paged"
 required-features = ["v1", "reqwest-async"]
 
 [[example]]

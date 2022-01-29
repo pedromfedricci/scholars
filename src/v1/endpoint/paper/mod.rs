@@ -1,3 +1,5 @@
+mod authors;
+pub use authors::*;
 mod search;
 pub use search::*;
 
