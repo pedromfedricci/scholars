@@ -1,5 +1,9 @@
 mod authors;
 pub use authors::*;
+mod citations;
+pub use citations::*;
+mod references;
+pub use references::*;
 mod search;
 pub use search::*;
 
