@@ -17,11 +17,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install stable toolchain
+      - name: Install 1.56.1 toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
-          override: true
+          profile: minimal
+          toolchain: 1.56.1
           component: rustmt
 
       - name: Checkout repository
@@ -38,12 +38,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install stable toolchain
+      - name: Install 1.56.1 toolchain
         uses: actions-rs/toolchain@v1
         with:
+          profile: minimal
+          toolchain: 1.56.1
           components: clippy
-          toolchain: stable
-          override: true
 
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -62,3 +62,24 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features -- -D warnings
+
+  docs:
+    name: Code documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Install 1.56.1 toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: 1.56.1
+          components: docs
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run cargo doc
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --all-features
