@@ -73,7 +73,7 @@ jobs:
         with:
           profile: minimal
           toolchain: 1.56.1
-          components: docs
+          components: rust-docs
 
       - name: Checkout repository
         uses: actions/checkout@v2
