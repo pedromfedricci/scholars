@@ -7,6 +7,7 @@ use super::author::{Author, AuthorInfo};
 use super::batch::{Batch, SearchBatch};
 use super::embedding::Embedding;
 use super::tldr::Tldr;
+use super::Batched;
 
 #[serde_as]
 #[skip_serializing_none]
@@ -139,67 +140,85 @@ pub struct FullPaper {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-pub struct PaperBatch<T = PaperWithLinks>(Batch<T>);
+pub struct PaperBatch(Batch<PaperWithLinks>);
 
-impl<T> PaperBatch<T> {
-    pub fn get_offset(&self) -> u64 {
-        self.0.offset
+impl Batched<PaperWithLinks> for PaperBatch {
+    fn offset(&self) -> u64 {
+        self.0.offset()
     }
 
-    pub fn get_next(&self) -> Option<u64> {
-        self.0.next
+    fn get_next(&self) -> Option<u64> {
+        self.0.get_next()
+    }
+
+    fn set_next(&mut self, next: Option<u64>) {
+        self.0.set_next(next)
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
-impl<T> From<PaperBatch<T>> for Vec<T>
-where
-    T: From<PaperWithLinks>,
-{
-    fn from(batch: PaperBatch<T>) -> Vec<T> {
+impl From<PaperBatch> for Vec<PaperWithLinks> {
+    fn from(batch: PaperBatch) -> Vec<PaperWithLinks> {
         Vec::from(batch.0)
     }
 }
 
-impl<T> AsRef<[T]> for PaperBatch<T>
-where
-    T: From<PaperWithLinks>,
-{
-    fn as_ref(&self) -> &[T] {
+impl AsRef<Vec<PaperWithLinks>> for PaperBatch {
+    fn as_ref(&self) -> &Vec<PaperWithLinks> {
         self.0.as_ref()
+    }
+}
+
+impl AsMut<Vec<PaperWithLinks>> for PaperBatch {
+    fn as_mut(&mut self) -> &mut Vec<PaperWithLinks> {
+        self.0.as_mut()
     }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-pub struct PaperSearchBatch<T = BasePaper>(SearchBatch<T>);
+pub struct PaperSearchBatch(SearchBatch<BasePaper>);
 
-impl<T> PaperSearchBatch<T> {
-    pub fn get_offset(&self) -> u64 {
-        self.0.batch.offset
-    }
-
-    pub fn get_next(&self) -> Option<u64> {
-        self.0.batch.next
-    }
-
-    pub fn get_total(&self) -> u64 {
+impl PaperSearchBatch {
+    pub fn total(&self) -> u64 {
         self.0.total
     }
 }
 
-impl<T> From<PaperSearchBatch<T>> for Vec<T>
-where
-    T: From<BasePaper>,
-{
-    fn from(batch: PaperSearchBatch<T>) -> Vec<T> {
+impl Batched<BasePaper> for PaperSearchBatch {
+    fn offset(&self) -> u64 {
+        self.0.offset()
+    }
+
+    fn get_next(&self) -> Option<u64> {
+        self.0.get_next()
+    }
+
+    fn set_next(&mut self, next: Option<u64>) {
+        self.0.set_next(next)
+    }
+
+    fn len(&self) -> usize {
+        self.0.base.len()
+    }
+}
+
+impl From<PaperSearchBatch> for Vec<BasePaper> {
+    fn from(batch: PaperSearchBatch) -> Vec<BasePaper> {
         Vec::from(batch.0)
     }
 }
 
-impl<T> AsRef<[T]> for PaperSearchBatch<T>
-where
-    T: From<BasePaper>,
-{
-    fn as_ref(&self) -> &[T] {
+impl AsRef<Vec<BasePaper>> for PaperSearchBatch {
+    fn as_ref(&self) -> &Vec<BasePaper> {
         self.0.as_ref()
+    }
+}
+
+impl AsMut<Vec<BasePaper>> for PaperSearchBatch {
+    fn as_mut(&mut self) -> &mut Vec<BasePaper> {
+        self.0.as_mut()
     }
 }

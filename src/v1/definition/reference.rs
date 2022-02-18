@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, skip_serializing_none};
 
-use super::{batch::Batch, paper::BasePaper};
+use super::{batch::Batch, paper::BasePaper, Batched};
 
 #[serde_as]
 #[skip_serializing_none]
@@ -21,32 +21,40 @@ pub struct Reference {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-pub struct ReferenceBatch<T = Reference>(Batch<T>);
+pub struct ReferenceBatch(Batch<Reference>);
 
-impl<T> ReferenceBatch<T> {
-    pub fn get_offset(&self) -> u64 {
-        self.0.offset
+impl Batched<Reference> for ReferenceBatch {
+    fn offset(&self) -> u64 {
+        self.0.offset()
     }
 
-    pub fn get_next(&self) -> Option<u64> {
-        self.0.next
+    fn get_next(&self) -> Option<u64> {
+        self.0.get_next()
+    }
+
+    fn set_next(&mut self, next: Option<u64>) {
+        self.0.set_next(next)
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
-impl<T> From<ReferenceBatch<T>> for Vec<T>
-where
-    T: From<Reference>,
-{
-    fn from(batch: ReferenceBatch<T>) -> Vec<T> {
+impl From<ReferenceBatch> for Vec<Reference> {
+    fn from(batch: ReferenceBatch) -> Vec<Reference> {
         Vec::from(batch.0)
     }
 }
 
-impl<T> AsRef<[T]> for ReferenceBatch<T>
-where
-    T: From<Reference>,
-{
-    fn as_ref(&self) -> &[T] {
+impl AsRef<Vec<Reference>> for ReferenceBatch {
+    fn as_ref(&self) -> &Vec<Reference> {
         self.0.as_ref()
+    }
+}
+
+impl AsMut<Vec<Reference>> for ReferenceBatch {
+    fn as_mut(&mut self) -> &mut Vec<Reference> {
+        self.0.as_mut()
     }
 }

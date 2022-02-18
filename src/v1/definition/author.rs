@@ -5,6 +5,7 @@ use serde_with::{serde_as, skip_serializing_none};
 
 use super::batch::{Batch, SearchBatch};
 use super::paper::BasePaper;
+use super::Batched;
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -85,67 +86,85 @@ pub struct AuthorWithPapers {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-pub struct AuthorBatch<T = AuthorWithPapers>(Batch<T>);
+pub struct AuthorBatch(Batch<AuthorWithPapers>);
 
-impl<T> AuthorBatch<T> {
-    pub fn get_offset(&self) -> u64 {
-        self.0.offset
+impl Batched<AuthorWithPapers> for AuthorBatch {
+    fn offset(&self) -> u64 {
+        self.0.offset()
     }
 
-    pub fn get_next(&self) -> Option<u64> {
-        self.0.next
+    fn get_next(&self) -> Option<u64> {
+        self.0.get_next()
+    }
+
+    fn set_next(&mut self, next: Option<u64>) {
+        self.0.set_next(next)
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
-impl<T> From<AuthorBatch<T>> for Vec<T>
-where
-    T: From<AuthorWithPapers>,
-{
-    fn from(batch: AuthorBatch<T>) -> Vec<T> {
+impl From<AuthorBatch> for Vec<AuthorWithPapers> {
+    fn from(batch: AuthorBatch) -> Vec<AuthorWithPapers> {
         Vec::from(batch.0)
     }
 }
 
-impl<T> AsRef<[T]> for AuthorBatch<T>
-where
-    T: From<AuthorWithPapers>,
-{
-    fn as_ref(&self) -> &[T] {
+impl AsRef<Vec<AuthorWithPapers>> for AuthorBatch {
+    fn as_ref(&self) -> &Vec<AuthorWithPapers> {
         self.0.as_ref()
+    }
+}
+
+impl AsMut<Vec<AuthorWithPapers>> for AuthorBatch {
+    fn as_mut(&mut self) -> &mut Vec<AuthorWithPapers> {
+        self.0.as_mut()
     }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
-pub struct AuthorSearchBatch<T = AuthorWithPapers>(SearchBatch<T>);
+pub struct AuthorSearchBatch(SearchBatch<AuthorWithPapers>);
 
-impl<T> AuthorSearchBatch<T> {
-    pub fn get_offset(&self) -> u64 {
-        self.0.batch.offset
-    }
-
-    pub fn get_next(&self) -> Option<u64> {
-        self.0.batch.next
-    }
-
-    pub fn get_total(&self) -> u64 {
+impl AuthorSearchBatch {
+    pub fn total(&self) -> u64 {
         self.0.total
     }
 }
 
-impl<T> From<AuthorSearchBatch<T>> for Vec<T>
-where
-    T: From<AuthorWithPapers>,
-{
-    fn from(batch: AuthorSearchBatch<T>) -> Vec<T> {
+impl Batched<AuthorWithPapers> for AuthorSearchBatch {
+    fn offset(&self) -> u64 {
+        self.0.offset()
+    }
+
+    fn get_next(&self) -> Option<u64> {
+        self.0.get_next()
+    }
+
+    fn set_next(&mut self, next: Option<u64>) {
+        self.0.set_next(next)
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl From<AuthorSearchBatch> for Vec<AuthorWithPapers> {
+    fn from(batch: AuthorSearchBatch) -> Vec<AuthorWithPapers> {
         Vec::from(batch.0)
     }
 }
 
-impl<T> AsRef<[T]> for AuthorSearchBatch<T>
-where
-    T: From<AuthorWithPapers>,
-{
-    fn as_ref(&self) -> &[T] {
+impl AsRef<Vec<AuthorWithPapers>> for AuthorSearchBatch {
+    fn as_ref(&self) -> &Vec<AuthorWithPapers> {
         self.0.as_ref()
+    }
+}
+
+impl AsMut<Vec<AuthorWithPapers>> for AuthorSearchBatch {
+    fn as_mut(&mut self) -> &mut Vec<AuthorWithPapers> {
+        self.0.as_mut()
     }
 }
