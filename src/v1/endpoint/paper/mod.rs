@@ -42,7 +42,7 @@ mod blocking {
             C: Client,
             PaperError<C>: From<C::Error>,
         {
-            self.0.query(client)
+            self.0.query(client).map(From::from)
         }
     }
 }
@@ -59,7 +59,7 @@ mod r#async {
             C: AsyncClient + Sync,
             PaperError<C>: From<C::Error>,
         {
-            self.0.query_async(client).await
+            self.0.query_async(client).await.map(From::from)
         }
     }
 }

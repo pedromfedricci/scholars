@@ -1,4 +1,4 @@
-use scholars::v1::definition::PaperWithLinks;
+use scholars::v1::definition::BasePaper;
 use scholars::v1::endpoint::GetAuthorPapers;
 use scholars::v1::pagination::{Page, Pages};
 use scholars::v1::query_params::AuthorPapersParams;
@@ -13,7 +13,7 @@ fn main() -> anyhow::Result<()> {
 
     // Collecting into a `Result<Collection<T>, E>` will
     // stop the iteration at the first `E` type returned.
-    let papers = endpoint.paged(pages, &client).collect::<Result<Vec<PaperWithLinks>, _>>()?;
+    let papers = endpoint.paged(pages, &client).collect::<Result<Vec<BasePaper>, _>>()?;
 
     println!(
         "results:\n{}\nnumber of results: {}",

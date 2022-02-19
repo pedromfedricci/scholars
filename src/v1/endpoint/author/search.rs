@@ -3,7 +3,7 @@ use serde::de::DeserializeOwned;
 use crate::client::BaseClient;
 use crate::error::ApiError;
 use crate::v1::definition::AuthorWithPapers;
-use crate::v1::endpoint::BaseEndpoint;
+use crate::v1::endpoint::{iter::SearchBatchEndpontIter, BaseEndpoint};
 use crate::v1::error::ResponseError;
 use crate::v1::pagination::Pages;
 use crate::v1::query_params::AuthorSearchParams;
@@ -25,9 +25,9 @@ type AuthorSearchError<C> = ApiError<ResponseError, <C as BaseClient>::Error>;
 #[cfg(feature = "blocking")]
 mod blocking {
     use super::*;
-    use crate::{client::Client, query::Query, v1::endpoint::EndpointIter};
+    use crate::{client::Client, query::Query};
 
-    pub struct AuthorSearchIter<'a, T, C>(EndpointIter<'a, T, AuthorSearchEndpoint, C>);
+    pub struct AuthorSearchIter<'a, T, C>(SearchBatchEndpontIter<'a, T, AuthorSearchEndpoint, C>);
 
     impl<'a, T, C> AuthorSearchIter<'a, T, C> {
         fn new(
@@ -35,7 +35,13 @@ mod blocking {
             pages: Pages,
             client: &'a C,
         ) -> AuthorSearchIter<'a, T, C> {
-            AuthorSearchIter(EndpointIter::new(endpoint, pages, client))
+            AuthorSearchIter(SearchBatchEndpontIter::new(endpoint, pages, client))
+        }
+    }
+
+    impl<T, C> AuthorSearchIter<'_, T, C> {
+        pub fn total(&self) -> u64 {
+            self.0.total()
         }
     }
 
@@ -48,15 +54,16 @@ mod blocking {
         type Item = Result<T, AuthorSearchError<C>>;
 
         fn next(&mut self) -> Option<Self::Item> {
-            <EndpointIter<'a, T, AuthorSearchEndpoint, C> as Iterator>::next(&mut self.0)
+            self.0.next().map(From::from)
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.0.size_hint()
         }
     }
 
     impl GetAuthorSearch {
-        pub fn paged<T, C>(self, pages: Pages, client: &C) -> AuthorSearchIter<'_, T, C>
-        where
-            T: From<AuthorWithPapers>,
-        {
+        pub fn paged<T, C>(self, pages: Pages, client: &C) -> AuthorSearchIter<'_, T, C> {
             AuthorSearchIter::new(self.0, pages, client)
         }
 
@@ -66,7 +73,7 @@ mod blocking {
             C: Client,
             AuthorSearchError<C>: From<C::Error>,
         {
-            self.0.query(client)
+            self.0.query(client).map(From::from)
         }
     }
 }
@@ -89,7 +96,7 @@ mod r#async {
             C: AsyncClient + Sync,
             AuthorSearchError<C>: From<C::Error>,
         {
-            self.0.into_async_iter(pages, client)
+            SearchBatchEndpontIter::new(self.0, pages, client).into_async_iter()
         }
 
         pub async fn query_async<T, C>(&self, client: &C) -> Result<T, AuthorSearchError<C>>
@@ -98,7 +105,7 @@ mod r#async {
             C: AsyncClient + Sync,
             AuthorSearchError<C>: From<C::Error>,
         {
-            self.0.query_async(client).await
+            self.0.query_async(client).await.map(From::from)
         }
     }
 }

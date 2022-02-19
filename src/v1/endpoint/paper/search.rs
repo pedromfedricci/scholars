@@ -3,7 +3,7 @@ use serde::de::DeserializeOwned;
 use crate::client::BaseClient;
 use crate::error::ApiError;
 use crate::v1::definition::BasePaper;
-use crate::v1::endpoint::BaseEndpoint;
+use crate::v1::endpoint::{iter::SearchBatchEndpontIter, BaseEndpoint};
 use crate::v1::error::ResponseError;
 use crate::v1::pagination::Pages;
 use crate::v1::query_params::PaperSearchParams;
@@ -25,9 +25,9 @@ type PaperSearchError<C> = ApiError<ResponseError, <C as BaseClient>::Error>;
 #[cfg(feature = "blocking")]
 mod blocking {
     use super::*;
-    use crate::{client::Client, query::Query, v1::endpoint::EndpointIter};
+    use crate::{client::Client, query::Query};
 
-    pub struct PaperSearchIter<'a, T, C>(EndpointIter<'a, T, PaperSearchEndpoint, C>);
+    pub struct PaperSearchIter<'a, T, C>(SearchBatchEndpontIter<'a, T, PaperSearchEndpoint, C>);
 
     impl<'a, T, C> PaperSearchIter<'a, T, C> {
         fn new(
@@ -35,7 +35,7 @@ mod blocking {
             pages: Pages,
             client: &'a C,
         ) -> PaperSearchIter<'a, T, C> {
-            PaperSearchIter(EndpointIter::new(endpoint, pages, client))
+            PaperSearchIter(SearchBatchEndpontIter::new(endpoint, pages, client))
         }
     }
 
@@ -48,15 +48,16 @@ mod blocking {
         type Item = Result<T, PaperSearchError<C>>;
 
         fn next(&mut self) -> Option<Self::Item> {
-            <EndpointIter<'a, T, PaperSearchEndpoint, C> as Iterator>::next(&mut self.0)
+            self.0.next().map(From::from)
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.0.size_hint()
         }
     }
 
     impl GetPaperSearch {
-        pub fn paged<T, C>(self, pages: Pages, client: &C) -> PaperSearchIter<'_, T, C>
-        where
-            T: From<BasePaper>,
-        {
+        pub fn paged<T, C>(self, pages: Pages, client: &C) -> PaperSearchIter<'_, T, C> {
             PaperSearchIter::new(self.0, pages, client)
         }
 
@@ -66,7 +67,7 @@ mod blocking {
             C: Client,
             PaperSearchError<C>: From<C::Error>,
         {
-            self.0.query(client)
+            self.0.query(client).map(From::from)
         }
     }
 }
@@ -89,7 +90,7 @@ mod r#async {
             C: AsyncClient + Sync,
             PaperSearchError<C>: From<C::Error>,
         {
-            self.0.into_async_iter(pages, client)
+            SearchBatchEndpontIter::new(self.0, pages, client).into_async_iter()
         }
 
         pub async fn query_async<T, C>(&self, client: &C) -> Result<T, PaperSearchError<C>>
@@ -98,7 +99,7 @@ mod r#async {
             C: AsyncClient + Sync,
             PaperSearchError<C>: From<C::Error>,
         {
-            self.0.query_async(client).await
+            self.0.query_async(client).await.map(From::from)
         }
     }
 }

@@ -9,7 +9,7 @@ fn main() -> anyhow::Result<()> {
 
     let client = reqwest::blocking::Client::new();
     let endpoint = GetAuthorSearch::new(query_params());
-    let pages = Pages::Limit(9_950);
+    let pages = Pages::Limit(10);
 
     // Collecting into a `Result<Collection<T>, E>` will
     // stop the iteration at the first `E` type returned.
@@ -28,6 +28,6 @@ fn query_params() -> AuthorSearchParams {
     AuthorSearchParams::new(
         "adam smith".to_string(),
         Some(all_author_with_papers_fields()),
-        Page::new(450, 24).unwrap(),
+        Page::default(),
     )
 }

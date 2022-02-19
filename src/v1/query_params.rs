@@ -7,7 +7,7 @@ use serde_with::{serde_as, skip_serializing_none, CommaSeparator, StringWithSepa
 
 use crate::serialize::as_non_empty_string;
 use crate::urlencoded::UrlEncodedQuery;
-use crate::v1::pagination::{Page, Paged};
+use crate::v1::pagination::Page;
 use crate::v1::parameter::{
     AuthorWithPapersField, BasePaperField, FullPaperField, PaperField, PaperWithLinksField,
 };
@@ -165,14 +165,15 @@ impl_from_params_for_urlencoded! {
 
 macro_rules! impl_paged_for {
     ( $($type:ty),* ) => {$(
-        impl Paged for $type {
-            #[inline]
-            fn get_page(&self) -> &Page {
+        impl AsRef<Page> for $type {
+            fn as_ref(&self) -> &Page {
                 &self.0.page
             }
 
-            #[inline]
-            fn get_page_mut(&mut self) -> &mut Page {
+        }
+
+        impl AsMut<Page> for $type {
+            fn as_mut(&mut self) -> &mut Page {
                 &mut self.0.page
             }
         }

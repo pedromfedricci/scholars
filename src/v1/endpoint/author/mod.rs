@@ -38,7 +38,7 @@ mod blocking {
             C: Client,
             AuthorError<C>: From<C::Error>,
         {
-            self.0.query(client)
+            self.0.query(client).map(From::from)
         }
     }
 }
@@ -55,7 +55,7 @@ mod r#async {
             C: AsyncClient + Sync,
             AuthorError<C>: From<C::Error>,
         {
-            self.0.query_async(client).await
+            self.0.query_async(client).await.map(From::from)
         }
     }
 }

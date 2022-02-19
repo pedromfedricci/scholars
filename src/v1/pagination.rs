@@ -26,13 +26,13 @@ pub struct Page {
 impl Page {
     // API will return up to the first 10000 results from the search list.
     // You can't query any results beyond that point, API will return a error.
-    const RANGE_LIMIT: u64 = 10_000;
+    pub(in crate::v1) const RANGE_LIMIT: u64 = 10_000;
     // The max number of results that a page can return is 100.
     // API will return a error if the limit param is greater than 100 or equal to 0.
     const LIMIT_MAX: u64 = 100;
 
-    // The default limit for returned results on a single page is 10.
-    const LIMIT_DEFAULT: u64 = 10;
+    // The default limit for returned results on a single page is 100.
+    const LIMIT_DEFAULT: u64 = 100;
     // Offset's default starting position is 0.
     const OFFSET_DEFAULT: u64 = 0;
 
@@ -128,27 +128,25 @@ impl Default for Page {
     }
 }
 
-pub trait Paged {
-    fn get_page(&self) -> &Page;
-
-    fn get_page_mut(&mut self) -> &mut Page;
-
+pub(in crate::v1) trait Paged: AsRef<Page> + AsMut<Page> {
     fn set_limit(&mut self, limit: u64) -> Result<(), PaginationError> {
-        self.get_page_mut().set_limit(limit)
+        self.as_mut().set_limit(limit)
     }
 
     fn next_page(&mut self, next: u64) -> Result<(), RangeBoundsError> {
-        self.get_page_mut().next_page(next)
+        self.as_mut().next_page(next)
     }
 
     fn get_offset(&self) -> u64 {
-        self.get_page().get_offset()
+        self.as_ref().get_offset()
     }
 
     fn get_limit(&self) -> u64 {
-        self.get_page().get_limit()
+        self.as_ref().get_limit()
     }
 }
+
+impl<T: AsRef<Page> + AsMut<Page>> Paged for T {}
 
 #[derive(Clone, Copy, Debug, Eq, thiserror::Error, PartialEq)]
 pub enum PaginationError {

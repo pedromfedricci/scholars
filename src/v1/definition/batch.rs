@@ -40,6 +40,13 @@ pub(in crate::v1) struct SearchBatch<T> {
     pub(in crate::v1) total: u64,
 }
 
+#[cfg(feature = "blocking")]
+impl<T> SearchBatch<T> {
+    pub(in crate::v1) fn total(&self) -> u64 {
+        self.total
+    }
+}
+
 impl<T> Default for SearchBatch<T> {
     fn default() -> SearchBatch<T> {
         SearchBatch { base: Batch::default(), total: 0 }
@@ -64,9 +71,7 @@ impl<T> AsMut<Vec<T>> for SearchBatch<T> {
     }
 }
 
-pub(in crate::v1) trait Batched<T>:
-    Default + Into<Vec<T>> + AsRef<Vec<T>> + AsMut<Vec<T>>
-{
+pub(in crate::v1) trait Batched<T>: Default + AsRef<Vec<T>> + AsMut<Vec<T>> {
     fn offset(&self) -> u64;
 
     fn get_next(&self) -> Option<u64>;
