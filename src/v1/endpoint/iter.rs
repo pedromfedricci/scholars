@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
+use crate::endpoint::{Endpoint, EndpointResult};
 use crate::v1::definition::{Batch, Batched, SearchBatch};
-use crate::v1::endpoint::{Endpoint, EndpointResult};
 use crate::v1::pagination::{Page, Paged, Pages};
 
 #[derive(Debug)]

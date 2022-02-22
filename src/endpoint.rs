@@ -23,6 +23,10 @@ pub(crate) trait Endpoint {
     fn query_params(&self) -> Result<UrlEncodedQuery<'_>, UrlEncodedError>;
 }
 
+pub(in crate) type EndpointError<E, C> = ApiError<<E as Endpoint>::Error, <C as BaseClient>::Error>;
+
+pub(in crate) type EndpointResult<T, E, C> = Result<T, EndpointError<E, C>>;
+
 /// Converts [`url::Url`] into [`http::Uri`].
 #[inline]
 fn url_to_http_uri(url: &Url) -> Uri {
@@ -31,14 +35,10 @@ fn url_to_http_uri(url: &Url) -> Uri {
 
 /// Gets the Endpoint's [`Url`] and creates the request [`Builder`].
 #[inline]
-fn build_request<E, C>(
+fn build_request<E: Endpoint, C: BaseClient>(
     endpoint: &E,
     client: &C,
-) -> Result<(Builder, Url), ApiError<E::Error, C::Error>>
-where
-    E: Endpoint,
-    C: BaseClient,
-{
+) -> Result<(Builder, Url), EndpointError<E, C>> {
     let mut url = client.endpoint(endpoint.endpoint())?;
     endpoint.query_params()?.set_url(&mut url);
     log::debug!("querying Semantic Scholar API at {}", url.as_str());
@@ -51,11 +51,11 @@ where
 fn serialize_response<T, E: Endpoint, C: BaseClient>(
     rsp: Response<Bytes>,
     url: Url,
-) -> Result<T, ApiError<E::Error, C::Error>>
+) -> EndpointResult<T, E, C>
 where
     T: DeserializeOwned,
     E::Error: DeserializeOwned,
-    ApiError<E::Error, C::Error>: From<C::Error>,
+    EndpointError<E, C>: From<C::Error>,
 {
     let value = serde_json::from_slice(rsp.body())?;
     let status = rsp.status();
@@ -75,9 +75,9 @@ mod blocking {
     where
         T: DeserializeOwned,
         E::Error: DeserializeOwned,
-        ApiError<E::Error, C::Error>: From<C::Error>,
+        EndpointError<E, C>: From<C::Error>,
     {
-        fn query(&self, client: &C) -> Result<T, ApiError<E::Error, C::Error>> {
+        fn query(&self, client: &C) -> EndpointResult<T, E, C> {
             let (req, url) = build_request(self, client)?;
             let rsp = client.send(req, vec![])?;
             serialize_response::<T, E, C>(rsp, url)
@@ -95,9 +95,9 @@ mod r#async {
     where
         T: DeserializeOwned,
         E::Error: DeserializeOwned,
-        ApiError<E::Error, C::Error>: From<C::Error>,
+        EndpointError<E, C>: From<C::Error>,
     {
-        async fn query_async(&self, client: &C) -> Result<T, ApiError<E::Error, C::Error>> {
+        async fn query_async(&self, client: &C) -> EndpointResult<T, E, C> {
             let (req, url) = build_request(self, client)?;
             let rsp = client.send(req, vec![]).await?;
             serialize_response::<T, E, C>(rsp, url)

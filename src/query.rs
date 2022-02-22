@@ -1,4 +1,4 @@
-use crate::{endpoint::Endpoint, error::ApiError};
+use crate::endpoint::{Endpoint, EndpointResult};
 
 /// A trait which represents an API query which can be made by a client.
 #[cfg(feature = "blocking")]
@@ -8,7 +8,7 @@ where
     C: crate::client::Client,
 {
     /// Perform the query against the client.
-    fn query(&self, client: &C) -> Result<T, ApiError<E::Error, C::Error>>;
+    fn query(&self, client: &C) -> EndpointResult<T, E, C>;
 }
 
 /// A trait which represents an asynchronous API query which can be made by a client.
@@ -20,5 +20,5 @@ where
     C: crate::client::AsyncClient + Sync,
 {
     /// Perform the query asynchronously against the client.
-    async fn query_async(&self, client: &C) -> Result<T, ApiError<E::Error, C::Error>>;
+    async fn query_async(&self, client: &C) -> EndpointResult<T, E, C>;
 }

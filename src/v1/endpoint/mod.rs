@@ -10,16 +10,10 @@ use http::Method;
 use serde::Serialize;
 use serde_urlencoded::ser::Error as UrlEncodedError;
 
-use crate::client::BaseClient;
 use crate::endpoint::Endpoint;
-use crate::error::ApiError;
 use crate::urlencoded::UrlEncodedQuery;
 use crate::v1::error::ResponseError;
 use crate::v1::pagination::{Page, Paged};
-
-type EndpointError<E, C> = ApiError<<E as Endpoint>::Error, <C as BaseClient>::Error>;
-
-type EndpointResult<T, E, C> = Result<T, EndpointError<E, C>>;
 
 #[derive(Debug)]
 pub(in crate::v1) struct BaseEndpoint<P> {
