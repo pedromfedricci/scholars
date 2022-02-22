@@ -2,39 +2,56 @@ use std::marker::PhantomData;
 
 use crate::v1::definition::{Batch, Batched, SearchBatch};
 use crate::v1::endpoint::{Endpoint, EndpointResult};
-use crate::v1::pagination::{Paged, Pages};
+use crate::v1::pagination::{Page, Paged, Pages};
 
 #[derive(Debug)]
-struct EndpointIter<'c, T, E, C, B> {
+struct InnerEndpointIter<'c, T, E, C, B> {
     endpoint: E,
     client: &'c C,
     batch: B,
     pages: Pages,
     count: u64,
+    // `batch` holds elements of type `T`.
     _marker: PhantomData<T>,
 }
 
-pub(in crate::v1) struct BatchEndpontIter<'c, T, E, C>(EndpointIter<'c, T, E, C, Batch<T>>);
+pub(in crate::v1) struct BatchEndpontIter<'c, T, E, C>(InnerEndpointIter<'c, T, E, C, Batch<T>>);
+
+impl<T, E: Unpin, C> Unpin for BatchEndpontIter<'_, T, E, C> {}
 
 impl<'c, T, E: Paged, C> BatchEndpontIter<'c, T, E, C> {
     pub(in crate::v1) fn new(endpoint: E, pages: Pages, client: &'c C) -> Self {
         let batch = Batch::default();
-        BatchEndpontIter(EndpointIter::new(endpoint, batch, pages, client))
+        BatchEndpontIter(InnerEndpointIter::new(endpoint, batch, pages, client))
     }
 }
 
 pub(in crate::v1) struct SearchBatchEndpontIter<'c, T, E, C>(
-    EndpointIter<'c, T, E, C, SearchBatch<T>>,
+    InnerEndpointIter<'c, T, E, C, SearchBatch<T>>,
 );
 
 impl<'c, T, E: Paged, C> SearchBatchEndpontIter<'c, T, E, C> {
     pub(in crate::v1) fn new(endpoint: E, pages: Pages, client: &'c C) -> Self {
         let batch = SearchBatch::default();
-        SearchBatchEndpontIter(EndpointIter::new(endpoint, batch, pages, client))
+        SearchBatchEndpontIter(InnerEndpointIter::new(endpoint, batch, pages, client))
     }
 }
 
-impl<T, E, C, B: Batched<T> + Default> EndpointIter<'_, T, E, C, B> {
+impl<T, E, C> SearchBatchEndpontIter<'_, T, E, C> {
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let count = self.0.count;
+        let limit = self.0.batch.total().min(Page::RANGE_LIMIT);
+        let remainder = limit.saturating_sub(count) as usize;
+        (remainder, Some(remainder))
+    }
+
+    pub(in crate::v1) fn total(&self) -> u64 {
+        self.0.batch.total()
+    }
+}
+
+impl<T, E, C, B: Batched<T>> InnerEndpointIter<'_, T, E, C, B> {
     #[inline]
     fn update_current_page(&mut self, batch: B) {
         self.count = self.count.saturating_add(batch.len() as u64);
@@ -42,7 +59,7 @@ impl<T, E, C, B: Batched<T> + Default> EndpointIter<'_, T, E, C, B> {
     }
 }
 
-impl<T, E: Paged, C, B: Batched<T>> EndpointIter<'_, T, E, C, B> {
+impl<T, E: Paged, C, B: Batched<T>> InnerEndpointIter<'_, T, E, C, B> {
     #[inline]
     fn requested_limit(&mut self) -> Option<()> {
         if let Pages::Limit(requested) = self.pages {
@@ -81,7 +98,7 @@ impl<T, E: Paged, C, B: Batched<T>> EndpointIter<'_, T, E, C, B> {
     }
 }
 
-impl<'c, T, E: Paged, C, B: Batched<T>> EndpointIter<'c, T, E, C, B> {
+impl<'c, T, E: Paged, C, B: Batched<T>> InnerEndpointIter<'c, T, E, C, B> {
     fn new(endpoint: E, mut batch: B, pages: Pages, client: &'c C) -> Self {
         batch.set_next(Some(endpoint.get_offset()));
         Self { endpoint, pages, client, batch, _marker: PhantomData, count: 0 }
@@ -91,9 +108,9 @@ impl<'c, T, E: Paged, C, B: Batched<T>> EndpointIter<'c, T, E, C, B> {
 #[cfg(feature = "blocking")]
 mod blocking {
     use super::*;
-    use crate::{client::Client, query::Query, v1::pagination::Page};
+    use crate::{client::Client, query::Query};
 
-    impl<T, E, C, B> Iterator for EndpointIter<'_, T, E, C, B>
+    impl<T, E, C, B> Iterator for InnerEndpointIter<'_, T, E, C, B>
     where
         E: Endpoint + Paged + Query<B, E, C>,
         C: Client,
@@ -111,10 +128,8 @@ mod blocking {
                 // Query the endpoint.
                 match self.endpoint.query(self.client) {
                     Err(err) => return Some(Err(err)),
-                    Ok(batch) => {
-                        // Update current page results and control data.
-                        self.update_current_page(batch);
-                    }
+                    // Update current page results and control data.
+                    Ok(batch) => self.update_current_page(batch),
                 };
                 // Reverse the results to `pop` in FIFO order.
                 self.batch.as_mut().reverse();
@@ -148,16 +163,7 @@ mod blocking {
         }
 
         fn size_hint(&self) -> (usize, Option<usize>) {
-            let count = self.0.count;
-            let limit = self.0.batch.total().min(Page::RANGE_LIMIT);
-            let remainder = limit.saturating_sub(count) as usize;
-            (remainder, Some(remainder))
-        }
-    }
-
-    impl<T, E, C> SearchBatchEndpontIter<'_, T, E, C> {
-        pub(in crate::v1) fn total(&self) -> u64 {
-            self.0.batch.total()
+            self.size_hint()
         }
     }
 }
@@ -166,11 +172,13 @@ mod blocking {
 mod r#async {
     use super::*;
     use crate::{client::AsyncClient, query::AsyncQuery};
+    use futures_util::Stream;
 
-    impl<T, E, C, B: Batched<T>> EndpointIter<'_, T, E, C, B>
+    impl<T, E, C, B> InnerEndpointIter<'_, T, E, C, B>
     where
         E: Endpoint + Paged + AsyncQuery<B, E, C> + Sync,
         C: AsyncClient + Sync,
+        B: Batched<T>,
     {
         // The iterator will keep yielding errors if the endpoint returns
         // them indefinitely, so it is up to the caller to treat it as they
@@ -182,10 +190,8 @@ mod r#async {
                 // Query the endpoint.
                 match self.endpoint.query_async(self.client).await {
                     Err(err) => return Some(Err(err)),
-                    Ok(batch) => {
-                        // Update current page results and control data.
-                        self.update_current_page(batch);
-                    }
+                    // Update current page results and control data.
+                    Ok(batch) => self.update_current_page(batch),
                 };
                 // Reverse the results to `pop` in FIFO order.
                 self.batch.as_mut().reverse();
@@ -195,17 +201,20 @@ mod r#async {
         }
     }
 
-    impl<T, E, C> BatchEndpontIter<'_, T, E, C>
+    impl<'c, T: 'c, E: 'c, C: 'c, B: 'c> InnerEndpointIter<'c, T, E, C, B>
     where
-        E: Endpoint + Paged + AsyncQuery<Batch<T>, E, C> + Sync,
+        E: Endpoint + Paged + AsyncQuery<B, E, C> + Sync,
         C: AsyncClient + Sync,
+        B: Batched<T>,
     {
-        async fn next_async(&mut self) -> Option<EndpointResult<T, E, C>> {
-            self.0.next_async().await
+        fn into_async_iter(self) -> impl Stream<Item = EndpointResult<T, E, C>> + 'c {
+            futures_util::stream::unfold(self, |mut iter| async move {
+                iter.next_async().await.map(|item| (item, iter))
+            })
         }
     }
 
-    impl<'c, T: 'c, E: 'c, C> BatchEndpontIter<'c, T, E, C>
+    impl<'c, T: 'c, E: 'c, C: 'c> BatchEndpontIter<'c, T, E, C>
     where
         E: Endpoint + Paged + AsyncQuery<Batch<T>, E, C> + Sync,
         C: AsyncClient + Sync,
@@ -213,23 +222,11 @@ mod r#async {
         pub(in crate::v1) fn into_async_iter(
             self,
         ) -> impl futures_util::Stream<Item = EndpointResult<T, E, C>> + 'c {
-            futures_util::stream::unfold(self, |mut iter| async move {
-                iter.next_async().await.map(|item| (item, iter))
-            })
+            self.0.into_async_iter()
         }
     }
 
-    impl<T, E, C> SearchBatchEndpontIter<'_, T, E, C>
-    where
-        E: Endpoint + Paged + AsyncQuery<SearchBatch<T>, E, C> + Sync,
-        C: AsyncClient + Sync,
-    {
-        async fn next_async(&mut self) -> Option<EndpointResult<T, E, C>> {
-            self.0.next_async().await
-        }
-    }
-
-    impl<'c, T: 'c, E: 'c, C> SearchBatchEndpontIter<'c, T, E, C>
+    impl<'c, T: 'c, E: 'c, C: 'c> SearchBatchEndpontIter<'c, T, E, C>
     where
         E: Endpoint + Paged + AsyncQuery<SearchBatch<T>, E, C> + Sync,
         C: AsyncClient + Sync,
@@ -237,9 +234,7 @@ mod r#async {
         pub(in crate::v1) fn into_async_iter(
             self,
         ) -> impl futures_util::Stream<Item = EndpointResult<T, E, C>> + 'c {
-            futures_util::stream::unfold(self, |mut iter| async move {
-                iter.next_async().await.map(|item| (item, iter))
-            })
+            self.0.into_async_iter()
         }
     }
 }
