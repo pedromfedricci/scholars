@@ -1,0 +1,19 @@
+[package]
+name = "query_string"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Pedro de Matos Fedricci <pedromfedricci@gmail.com>"]
+description = "A query string builder for urlencoded serializable values"
+rust-version = "1.59"
+categories = ["web-programming", "encoding"]
+keywords = ["querystring", "urlencoded"]
+
+[dependencies]
+form_urlencoded = { version = "1.0" }
+serde_urlencoded = { version = "0.7" }
+url = { version = "2.0" }
+serde = { version = "1.0" }
+
+[dev-dependencies]
+serde_derive = "1"

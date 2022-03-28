@@ -2,7 +2,7 @@
 name = "scholars"
 version = "0.0.1"
 edition = "2021"
-rust-version = "1.56.1"
+rust-version = "1.59"
 license = "MIT"
 readme = "README.md"
 
@@ -15,6 +15,9 @@ categories = ["web-programming", "api-bindings"]
 keywords = ["semantic", "scholar", "research", "academic"]
 
 exclude = ["/json_schemes", "/.github/", "/rustfmt.toml", "/.gitignore"]
+
+[workspace]
+members = [".", "query_string"]
 
 [profile.release]
 lto = true

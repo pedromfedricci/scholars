@@ -581,6 +581,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "query_string"
+version = "0.1.0"
+dependencies = [
+ "form_urlencoded",
+ "serde",
+ "serde_derive",
+ "serde_urlencoded",
+ "url",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
