@@ -1,6 +1,6 @@
 use scholars::v1::definition::AuthorWithPapers;
 use scholars::v1::endpoint::GetPaperAuthors;
-use scholars::v1::pagination::{Page, Pages};
+use scholars::v1::pagination::{Page, Results};
 use scholars::v1::query_params::PaperAuthorsParams;
 use scholars::v1::utils::author_with_papers_fields_with;
 
@@ -12,12 +12,12 @@ async fn main() -> anyhow::Result<()> {
 
     let client = reqwest::Client::new();
     let endpoint = GetPaperAuthors::new(query_params(), paper_id());
-    let pages = Pages::Limit(68);
+    let results = Results::Limit(68);
 
     // Collecting into a `Result<Collection<T>, E>` will
     // stop the iteration at the first `E` type returned.
     let authors =
-        endpoint.paged_async(pages, &client).try_collect::<Vec<AuthorWithPapers>>().await?;
+        endpoint.paged_async(results, &client).try_collect::<Vec<AuthorWithPapers>>().await?;
 
     println!(
         "results:\n{}\nnumber of results: {}",
@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
     // the API endpoint keeps returning them.
     //
     // let res: Result<Vec<AuthorWithPapers>, anyhow::Error>;
-    // for res in endpoint.paged(pages, &client) {
+    // for res in endpoint.paged(results, &client) {
     //     println!("{:#?}", res)
     // }
 

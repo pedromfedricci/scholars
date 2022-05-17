@@ -2,14 +2,14 @@ use std::marker::PhantomData;
 
 use crate::endpoint::{Endpoint, EndpointResult};
 use crate::v1::definition::{Batch, Batched, SearchBatch};
-use crate::v1::pagination::{Page, Paged, Pages};
+use crate::v1::pagination::{Page, Paged, Results};
 
 #[derive(Debug)]
 struct InnerEndpointIter<'c, T, E, C, B> {
     endpoint: E,
     client: &'c C,
     batch: B,
-    pages: Pages,
+    results: Results,
     count: u64,
     // `batch` holds elements of type `T`.
     _marker: PhantomData<T>,
@@ -17,12 +17,12 @@ struct InnerEndpointIter<'c, T, E, C, B> {
 
 pub(in crate::v1) struct BatchEndpontIter<'c, T, E, C>(InnerEndpointIter<'c, T, E, C, Batch<T>>);
 
-impl<T, E: Unpin, C> Unpin for BatchEndpontIter<'_, T, E, C> {}
+// impl<T, E: Unpin, C> Unpin for BatchEndpontIter<'_, T, E, C> {}
 
 impl<'c, T, E: Paged, C> BatchEndpontIter<'c, T, E, C> {
-    pub(in crate::v1) fn new(endpoint: E, pages: Pages, client: &'c C) -> Self {
+    pub(in crate::v1) fn new(endpoint: E, results: Results, client: &'c C) -> Self {
         let batch = Batch::default();
-        BatchEndpontIter(InnerEndpointIter::new(endpoint, batch, pages, client))
+        BatchEndpontIter(InnerEndpointIter::new(endpoint, batch, results, client))
     }
 }
 
@@ -31,9 +31,9 @@ pub(in crate::v1) struct SearchBatchEndpontIter<'c, T, E, C>(
 );
 
 impl<'c, T, E: Paged, C> SearchBatchEndpontIter<'c, T, E, C> {
-    pub(in crate::v1) fn new(endpoint: E, pages: Pages, client: &'c C) -> Self {
+    pub(in crate::v1) fn new(endpoint: E, results: Results, client: &'c C) -> Self {
         let batch = SearchBatch::default();
-        SearchBatchEndpontIter(InnerEndpointIter::new(endpoint, batch, pages, client))
+        SearchBatchEndpontIter(InnerEndpointIter::new(endpoint, batch, results, client))
     }
 }
 
@@ -62,7 +62,7 @@ impl<T, E, C, B: Batched<T>> InnerEndpointIter<'_, T, E, C, B> {
 impl<T, E: Paged, C, B: Batched<T>> InnerEndpointIter<'_, T, E, C, B> {
     #[inline]
     fn requested_limit(&mut self) -> Option<()> {
-        if let Pages::Limit(requested) = self.pages {
+        if let Results::Limit(requested) = self.results {
             // If reached requested limit, stop iterating.
             if self.count >= requested {
                 return None;
@@ -99,9 +99,9 @@ impl<T, E: Paged, C, B: Batched<T>> InnerEndpointIter<'_, T, E, C, B> {
 }
 
 impl<'c, T, E: Paged, C, B: Batched<T>> InnerEndpointIter<'c, T, E, C, B> {
-    fn new(endpoint: E, mut batch: B, pages: Pages, client: &'c C) -> Self {
+    fn new(endpoint: E, mut batch: B, results: Results, client: &'c C) -> Self {
         batch.set_next(Some(endpoint.get_offset()));
-        Self { endpoint, pages, client, batch, _marker: PhantomData, count: 0 }
+        Self { endpoint, results, client, batch, _marker: PhantomData, count: 0 }
     }
 }
 

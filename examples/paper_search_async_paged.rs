@@ -1,6 +1,6 @@
 use scholars::v1::definition::BasePaper;
 use scholars::v1::endpoint::GetPaperSearch;
-use scholars::v1::pagination::{Page, Pages};
+use scholars::v1::pagination::{Page, Results};
 use scholars::v1::query_params::PaperSearchParams;
 use scholars::v1::utils::all_base_paper_fields;
 
@@ -12,11 +12,11 @@ async fn main() -> anyhow::Result<()> {
 
     let client = reqwest::Client::new();
     let endpoint = GetPaperSearch::new(query_params());
-    let pages = Pages::Limit(9_950);
+    let results = Results::Limit(9_950);
 
     // Collecting into a `Result<Collection<T>, E>` will
     // stop the iteration at the first `E` type returned.
-    let papers = endpoint.paged_async(pages, &client).try_collect::<Vec<BasePaper>>().await?;
+    let papers = endpoint.paged_async(results, &client).try_collect::<Vec<BasePaper>>().await?;
 
     println!(
         "results:\n{}\nnumber of results: {}",

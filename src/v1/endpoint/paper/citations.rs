@@ -5,7 +5,7 @@ use crate::error::ApiError;
 use crate::v1::definition::Citation;
 use crate::v1::endpoint::{iter::BatchEndpontIter, BaseEndpoint};
 use crate::v1::error::ResponseError;
-use crate::v1::pagination::Pages;
+use crate::v1::pagination::Results;
 use crate::v1::query_params::PaperCitationsParams;
 use crate::v1::static_url::paper_citations_endpoint;
 
@@ -32,10 +32,10 @@ mod blocking {
     impl<'a, T, C> PaperCitationsIter<'a, T, C> {
         fn new(
             endpoint: PaperCitationsEndpoint,
-            pages: Pages,
+            results: Results,
             client: &'a C,
         ) -> PaperCitationsIter<'a, T, C> {
-            PaperCitationsIter(BatchEndpontIter::new(endpoint, pages, client))
+            PaperCitationsIter(BatchEndpontIter::new(endpoint, results, client))
         }
     }
 
@@ -53,8 +53,8 @@ mod blocking {
     }
 
     impl GetPaperCitations {
-        pub fn paged<T, C>(self, pages: Pages, client: &C) -> PaperCitationsIter<'_, T, C> {
-            PaperCitationsIter::new(self.0, pages, client)
+        pub fn paged<T, C>(self, results: Results, client: &C) -> PaperCitationsIter<'_, T, C> {
+            PaperCitationsIter::new(self.0, results, client)
         }
 
         pub fn query<T, C>(&self, client: &C) -> Result<T, PaperCitationsError<C>>
@@ -78,7 +78,7 @@ mod r#async {
     impl GetPaperCitations {
         pub fn paged_async<'a, T: 'a, C>(
             self,
-            pages: Pages,
+            results: Results,
             client: &'a C,
         ) -> impl futures_util::Stream<Item = Result<T, PaperCitationsError<C>>> + 'a
         where
@@ -86,7 +86,7 @@ mod r#async {
             C: AsyncClient + Sync,
             PaperCitationsError<C>: From<C::Error>,
         {
-            BatchEndpontIter::new(self.0, pages, client).into_async_iter()
+            BatchEndpontIter::new(self.0, results, client).into_async_iter()
         }
 
         pub async fn query_async<T, C>(&self, client: &C) -> Result<T, PaperCitationsError<C>>
