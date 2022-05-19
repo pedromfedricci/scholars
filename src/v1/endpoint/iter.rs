@@ -4,6 +4,12 @@ use crate::endpoint::{Endpoint, EndpointResult};
 use crate::v1::definition::{Batch, Batched, SearchBatch};
 use crate::v1::pagination::{Page, Paged, Results};
 
+#[cfg(feature = "async")]
+pub(in crate::v1) use r#async::{BatchEndpointAsyncIter, SearchBatchEndpointAsyncIter};
+
+#[cfg(feature = "blocking")]
+pub(in crate::v1) use blocking::{BatchEndpointIter, SearchBatchEndpointIter};
+
 #[derive(Debug)]
 struct InnerEndpointIter<'c, T, E, C, B> {
     endpoint: E,
@@ -13,42 +19,6 @@ struct InnerEndpointIter<'c, T, E, C, B> {
     count: u64,
     // `batch` holds elements of type `T`.
     _marker: PhantomData<T>,
-}
-
-pub(in crate::v1) struct BatchEndpontIter<'c, T, E, C>(InnerEndpointIter<'c, T, E, C, Batch<T>>);
-
-// impl<T, E: Unpin, C> Unpin for BatchEndpontIter<'_, T, E, C> {}
-
-impl<'c, T, E: Paged, C> BatchEndpontIter<'c, T, E, C> {
-    pub(in crate::v1) fn new(endpoint: E, results: Results, client: &'c C) -> Self {
-        let batch = Batch::default();
-        BatchEndpontIter(InnerEndpointIter::new(endpoint, batch, results, client))
-    }
-}
-
-pub(in crate::v1) struct SearchBatchEndpontIter<'c, T, E, C>(
-    InnerEndpointIter<'c, T, E, C, SearchBatch<T>>,
-);
-
-impl<'c, T, E: Paged, C> SearchBatchEndpontIter<'c, T, E, C> {
-    pub(in crate::v1) fn new(endpoint: E, results: Results, client: &'c C) -> Self {
-        let batch = SearchBatch::default();
-        SearchBatchEndpontIter(InnerEndpointIter::new(endpoint, batch, results, client))
-    }
-}
-
-impl<T, E, C> SearchBatchEndpontIter<'_, T, E, C> {
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let count = self.0.count;
-        let limit = self.0.batch.total().min(Page::RANGE_LIMIT);
-        let remainder = limit.saturating_sub(count) as usize;
-        (remainder, Some(remainder))
-    }
-
-    pub(in crate::v1) fn total(&self) -> u64 {
-        self.0.batch.total()
-    }
 }
 
 impl<T, E, C, B: Batched<T>> InnerEndpointIter<'_, T, E, C, B> {
@@ -139,7 +109,35 @@ mod blocking {
         }
     }
 
-    impl<T, E, C> Iterator for BatchEndpontIter<'_, T, E, C>
+    pub(in crate::v1) struct BatchEndpointIter<'c, T, E, C>(
+        InnerEndpointIter<'c, T, E, C, Batch<T>>,
+    );
+
+    impl<'c, T, E: Paged, C> BatchEndpointIter<'c, T, E, C> {
+        pub(in crate::v1) fn new(endpoint: E, results: Results, client: &'c C) -> Self {
+            let batch = Batch::default();
+            BatchEndpointIter(InnerEndpointIter::new(endpoint, batch, results, client))
+        }
+    }
+
+    pub(in crate::v1) struct SearchBatchEndpointIter<'c, T, E, C>(
+        InnerEndpointIter<'c, T, E, C, SearchBatch<T>>,
+    );
+
+    impl<'c, T, E: Paged, C> SearchBatchEndpointIter<'c, T, E, C> {
+        pub(in crate::v1) fn new(endpoint: E, results: Results, client: &'c C) -> Self {
+            let batch = SearchBatch::default();
+            SearchBatchEndpointIter(InnerEndpointIter::new(endpoint, batch, results, client))
+        }
+    }
+
+    impl<T, E, C> SearchBatchEndpointIter<'_, T, E, C> {
+        pub(in crate::v1) fn total(&self) -> u64 {
+            self.0.batch.total()
+        }
+    }
+
+    impl<T, E, C> Iterator for BatchEndpointIter<'_, T, E, C>
     where
         E: Endpoint + Paged + Query<Batch<T>, E, C>,
         C: Client,
@@ -151,7 +149,7 @@ mod blocking {
         }
     }
 
-    impl<T, E, C> Iterator for SearchBatchEndpontIter<'_, T, E, C>
+    impl<T, E, C> Iterator for SearchBatchEndpointIter<'_, T, E, C>
     where
         E: Endpoint + Paged + Query<SearchBatch<T>, E, C>,
         C: Client,
@@ -163,16 +161,25 @@ mod blocking {
         }
 
         fn size_hint(&self) -> (usize, Option<usize>) {
-            self.size_hint()
+            let count = self.0.count;
+            let limit = self.0.batch.total().min(Page::RANGE_LIMIT);
+            let remainder = limit.saturating_sub(count) as usize;
+            (remainder, Some(remainder))
         }
     }
 }
 
 #[cfg(feature = "async")]
 mod r#async {
+    use std::future::Future;
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+
+    use futures_core::{ready, Stream};
+    use pin_project::pin_project;
+
     use super::*;
     use crate::{client::AsyncClient, query::AsyncQuery};
-    use futures_util::Stream;
 
     impl<T, E, C, B> InnerEndpointIter<'_, T, E, C, B>
     where
@@ -201,40 +208,148 @@ mod r#async {
         }
     }
 
-    impl<'c, T: 'c, E: 'c, C: 'c, B: 'c> InnerEndpointIter<'c, T, E, C, B>
+    type PinnedBoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+    type FutureOutput<'c, T, E, C, B> =
+        Option<(EndpointResult<T, E, C>, InnerEndpointIter<'c, T, E, C, B>)>;
+
+    #[pin_project(project = StreamStateProj, project_replace = StreamStateProjReplace)]
+    enum StreamState<'c, T, E: Endpoint, C: AsyncClient, B> {
+        Inner { inner: InnerEndpointIter<'c, T, E, C, B> },
+        Future { future: PinnedBoxFuture<'c, FutureOutput<'c, T, E, C, B>> },
+        Empty,
+    }
+
+    impl<'c, T, E: Endpoint, C: AsyncClient, B> StreamState<'c, T, E, C, B> {
+        fn project_future(
+            self: Pin<&mut Self>,
+        ) -> Option<&mut PinnedBoxFuture<'c, FutureOutput<'c, T, E, C, B>>> {
+            match self.project() {
+                StreamStateProj::Future { future } => Some(future),
+                _ => None,
+            }
+        }
+
+        fn take_value(self: Pin<&mut Self>) -> Option<InnerEndpointIter<'c, T, E, C, B>> {
+            match &*self {
+                StreamState::Inner { .. } => match self.project_replace(StreamState::Empty) {
+                    StreamStateProjReplace::Inner { inner } => Some(inner),
+                    _ => unreachable!(),
+                },
+                _ => None,
+            }
+        }
+    }
+
+    #[pin_project]
+    struct EndpointStream<'c, T, E: Endpoint, C: AsyncClient, B> {
+        #[pin]
+        state: StreamState<'c, T, E, C, B>,
+    }
+
+    impl<'c, T, E: Endpoint + Paged, C: AsyncClient, B: Batched<T>> EndpointStream<'c, T, E, C, B> {
+        fn new(endpoint: E, batch: B, results: Results, client: &'c C) -> Self {
+            let inner = InnerEndpointIter::new(endpoint, batch, results, client);
+            EndpointStream { state: StreamState::Inner { inner } }
+        }
+    }
+
+    impl<'c, T: 'c, E: 'c, C, B: 'c> Stream for EndpointStream<'c, T, E, C, B>
     where
         E: Endpoint + Paged + AsyncQuery<B, E, C> + Sync,
         C: AsyncClient + Sync,
         B: Batched<T>,
     {
-        fn into_async_iter(self) -> impl Stream<Item = EndpointResult<T, E, C>> + 'c {
-            futures_util::stream::unfold(self, |mut iter| async move {
-                iter.next_async().await.map(|item| (item, iter))
-            })
+        type Item = EndpointResult<T, E, C>;
+
+        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            let mut this = self.project();
+
+            if let Some(mut state) = this.state.as_mut().take_value() {
+                this.state.set(StreamState::Future {
+                    future: Box::pin(
+                        async move { state.next_async().await.map(|item| (item, state)) },
+                    ),
+                });
+            }
+
+            let step = match this.state.as_mut().project_future() {
+                Some(fut) => ready!(fut.as_mut().poll(cx)),
+                None => panic!("Stream must not be polled after it returned `Poll::Ready(None)`"),
+            };
+
+            if let Some((item, next_state)) = step {
+                this.state.set(StreamState::Inner { inner: next_state });
+                Poll::Ready(Some(item))
+            } else {
+                this.state.set(StreamState::Empty);
+                Poll::Ready(None)
+            }
         }
     }
 
-    impl<'c, T: 'c, E: 'c, C: 'c> BatchEndpontIter<'c, T, E, C>
+    pub(in crate::v1) struct BatchEndpointAsyncIter<'c, T, E: Endpoint, C: AsyncClient>(
+        EndpointStream<'c, T, E, C, Batch<T>>,
+    );
+
+    impl<'c, T, E: Endpoint + Paged, C: AsyncClient> BatchEndpointAsyncIter<'c, T, E, C> {
+        pub(in crate::v1) fn new(endpoint: E, results: Results, client: &'c C) -> Self {
+            let batch = Batch::default();
+            BatchEndpointAsyncIter(EndpointStream::new(endpoint, batch, results, client))
+        }
+    }
+
+    impl<'c, T: 'c, E: 'c, C> Stream for BatchEndpointAsyncIter<'c, T, E, C>
     where
         E: Endpoint + Paged + AsyncQuery<Batch<T>, E, C> + Sync,
         C: AsyncClient + Sync,
     {
-        pub(in crate::v1) fn into_async_iter(
-            self,
-        ) -> impl futures_util::Stream<Item = EndpointResult<T, E, C>> + 'c {
-            self.0.into_async_iter()
+        type Item = EndpointResult<T, E, C>;
+
+        fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            Pin::new(&mut self.0).poll_next(cx)
         }
     }
 
-    impl<'c, T: 'c, E: 'c, C: 'c> SearchBatchEndpontIter<'c, T, E, C>
+    pub(in crate::v1) struct SearchBatchEndpointAsyncIter<'c, T, E: Endpoint, C: AsyncClient>(
+        EndpointStream<'c, T, E, C, SearchBatch<T>>,
+    );
+
+    impl<'c, T, E: Endpoint + Paged, C: AsyncClient> SearchBatchEndpointAsyncIter<'c, T, E, C> {
+        pub(in crate::v1) fn new(endpoint: E, results: Results, client: &'c C) -> Self {
+            let batch = SearchBatch::default();
+            SearchBatchEndpointAsyncIter(EndpointStream::new(endpoint, batch, results, client))
+        }
+    }
+
+    impl<T, E: Endpoint, C: AsyncClient> SearchBatchEndpointAsyncIter<'_, T, E, C> {
+        pub(in crate::v1) fn total(&self) -> u64 {
+            match self.0.state {
+                StreamState::Inner { ref inner } => inner.batch.total(),
+                _ => 0,
+            }
+        }
+    }
+
+    impl<'c, T: 'c, E: 'c, C> Stream for SearchBatchEndpointAsyncIter<'c, T, E, C>
     where
         E: Endpoint + Paged + AsyncQuery<SearchBatch<T>, E, C> + Sync,
         C: AsyncClient + Sync,
     {
-        pub(in crate::v1) fn into_async_iter(
-            self,
-        ) -> impl futures_util::Stream<Item = EndpointResult<T, E, C>> + 'c {
-            self.0.into_async_iter()
+        type Item = EndpointResult<T, E, C>;
+
+        fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            Pin::new(&mut self.0).poll_next(cx)
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            if let StreamState::Inner { ref inner } = self.0.state {
+                let count = inner.count;
+                let limit = inner.batch.total().min(Page::RANGE_LIMIT);
+                let remainder = limit.saturating_sub(count) as usize;
+                (remainder, Some(remainder))
+            } else {
+                (0, None)
+            }
         }
     }
 }

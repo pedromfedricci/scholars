@@ -15,6 +15,8 @@ use crate::v1::static_url::author_endpoint;
 
 type AuthorEndpoint = BaseEndpoint<AuthorParams>;
 
+type AuthorError<C> = ApiError<ResponseError, <C as BaseClient>::Error>;
+
 pub struct GetAuthor(AuthorEndpoint);
 
 impl GetAuthor {
@@ -23,8 +25,6 @@ impl GetAuthor {
         GetAuthor(BaseEndpoint { query_params, endpoint })
     }
 }
-
-type AuthorError<C> = ApiError<ResponseError, <C as BaseClient>::Error>;
 
 #[cfg(feature = "blocking")]
 mod blocking {

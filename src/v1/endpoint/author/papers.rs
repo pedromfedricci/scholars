@@ -3,11 +3,17 @@ use serde::de::DeserializeOwned;
 use crate::client::BaseClient;
 use crate::error::ApiError;
 use crate::v1::definition::PaperWithLinks;
-use crate::v1::endpoint::{iter::BatchEndpontIter, BaseEndpoint};
+use crate::v1::endpoint::{iter::BatchEndpointIter, BaseEndpoint};
 use crate::v1::error::ResponseError;
 use crate::v1::pagination::Results;
 use crate::v1::query_params::AuthorPapersParams;
 use crate::v1::static_url::author_papers_endpoint;
+
+#[cfg(feature = "blocking")]
+pub use blocking::AuthorPapersIter;
+
+#[cfg(feature = "async")]
+pub use r#async::AuthorPapersAsyncIter;
 
 type AuthorPapersEndpoint = BaseEndpoint<AuthorPapersParams>;
 
@@ -27,7 +33,22 @@ mod blocking {
     use super::*;
     use crate::{client::Client, query::Query};
 
-    pub struct AuthorPapersIter<'a, T, C>(BatchEndpontIter<'a, T, AuthorPapersEndpoint, C>);
+    impl GetAuthorPapers {
+        pub fn paged<T, C>(self, results: Results, client: &C) -> AuthorPapersIter<'_, T, C> {
+            AuthorPapersIter::new(self.0, results, client)
+        }
+
+        pub fn query<T, C>(&self, client: &C) -> Result<T, AuthorPapersError<C>>
+        where
+            T: From<PaperWithLinks> + DeserializeOwned,
+            C: Client,
+            AuthorPapersError<C>: From<C::Error>,
+        {
+            self.0.query(client).map(From::from)
+        }
+    }
+
+    pub struct AuthorPapersIter<'a, T, C>(BatchEndpointIter<'a, T, AuthorPapersEndpoint, C>);
 
     impl<'a, T, C> AuthorPapersIter<'a, T, C> {
         fn new(
@@ -35,7 +56,7 @@ mod blocking {
             results: Results,
             client: &'a C,
         ) -> AuthorPapersIter<'a, T, C> {
-            AuthorPapersIter(BatchEndpontIter::new(endpoint, results, client))
+            AuthorPapersIter(BatchEndpointIter::new(endpoint, results, client))
         }
     }
 
@@ -51,28 +72,17 @@ mod blocking {
             self.0.next().map(From::from)
         }
     }
-
-    impl GetAuthorPapers {
-        pub fn paged<T, C>(self, results: Results, client: &C) -> AuthorPapersIter<'_, T, C> {
-            AuthorPapersIter::new(self.0, results, client)
-        }
-
-        pub fn query<T, C>(&self, client: &C) -> Result<T, AuthorPapersError<C>>
-        where
-            T: From<PaperWithLinks> + DeserializeOwned,
-            C: Client,
-            AuthorPapersError<C>: From<C::Error>,
-        {
-            self.0.query(client).map(From::from)
-        }
-    }
 }
-#[cfg(feature = "blocking")]
-pub use blocking::AuthorPapersIter;
 
 #[cfg(feature = "async")]
 mod r#async {
+    use std::pin::Pin;
+    use std::task::{Context, Poll};
+
+    use futures_core::Stream;
+
     use super::*;
+    use crate::v1::endpoint::iter::BatchEndpointAsyncIter;
     use crate::{client::AsyncClient, query::AsyncQuery};
 
     impl GetAuthorPapers {
@@ -80,13 +90,13 @@ mod r#async {
             self,
             results: Results,
             client: &'a C,
-        ) -> impl futures_util::Stream<Item = Result<T, AuthorPapersError<C>>> + 'a
+        ) -> AuthorPapersAsyncIter<'a, T, C>
         where
             T: From<PaperWithLinks> + DeserializeOwned,
             C: AsyncClient + Sync,
             AuthorPapersError<C>: From<C::Error>,
         {
-            BatchEndpontIter::new(self.0, results, client).into_async_iter()
+            AuthorPapersAsyncIter::new(self.0, results, client)
         }
 
         pub async fn query_async<T, C>(&self, client: &C) -> Result<T, AuthorPapersError<C>>
@@ -96,6 +106,37 @@ mod r#async {
             AuthorPapersError<C>: From<C::Error>,
         {
             self.0.query_async(client).await.map(From::from)
+        }
+    }
+
+    pub struct AuthorPapersAsyncIter<'a, T, C: AsyncClient>(
+        BatchEndpointAsyncIter<'a, T, AuthorPapersEndpoint, C>,
+    );
+
+    impl<'a, T, C: AsyncClient> AuthorPapersAsyncIter<'a, T, C> {
+        fn new(
+            endpoint: AuthorPapersEndpoint,
+            results: Results,
+            client: &'a C,
+        ) -> AuthorPapersAsyncIter<'a, T, C> {
+            AuthorPapersAsyncIter(BatchEndpointAsyncIter::new(endpoint, results, client))
+        }
+    }
+
+    impl<'a, T: 'a, C: AsyncClient> Stream for AuthorPapersAsyncIter<'a, T, C>
+    where
+        T: From<PaperWithLinks> + DeserializeOwned,
+        C: AsyncClient + Sync,
+        AuthorPapersError<C>: From<C::Error>,
+    {
+        type Item = Result<T, AuthorPapersError<C>>;
+
+        fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+            Pin::new(&mut self.0).poll_next(cx)
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.0.size_hint()
         }
     }
 }

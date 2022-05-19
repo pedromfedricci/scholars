@@ -19,6 +19,8 @@ use crate::v1::static_url::paper_endpoint;
 
 type PaperEndpoint = BaseEndpoint<PaperParams>;
 
+type PaperError<C> = ApiError<ResponseError, <C as BaseClient>::Error>;
+
 pub struct GetPaper(PaperEndpoint);
 
 impl GetPaper {
@@ -27,8 +29,6 @@ impl GetPaper {
         GetPaper(BaseEndpoint { query_params, endpoint })
     }
 }
-
-type PaperError<C> = ApiError<ResponseError, <C as BaseClient>::Error>;
 
 #[cfg(feature = "blocking")]
 mod blocking {
