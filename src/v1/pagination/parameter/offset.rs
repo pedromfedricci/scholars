@@ -81,9 +81,9 @@ extern crate static_assertions as sa;
 // Compile time assertions for `Offset` based on current web API constraints.
 //
 // Currently, the acceptable range is u64::MIN to u64::MAX (both inclusive),
-// so `Offset` APIs are infallible as opposed to the wrapped ConstrainedU64.
+// so `Offset` APIs are infallible and internally call ConstrainedU64 infallible APIs.
 // If this is to be changed, `Offset` APIs will need to be refactored
-// to be fallible, just like `Limit`.
+// to be fallible just like `Limit` are.
 sa::const_assert!(Offset::MIN == 0);
 sa::const_assert!(Offset::MAX == u64::MAX);
 

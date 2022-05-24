@@ -31,39 +31,11 @@ impl<const MIN: u64, const MAX: u64, const DEF: u64> ConstrainedU64<MIN, MAX, DE
         Ok(Self(value))
     }
 
-    /// Creates a new instance without checking the range constraints.
-    ///
-    /// User must guarantee that provided `value` is within inclusive range of
-    /// `Self::MIN` <= `value` <= `Self::MAX`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if constraints are no met.
-    #[inline]
-    pub(super) fn new_infallible(value: u64) -> Self {
-        assert!(Self::MIN <= value && value <= Self::MAX);
-        Self(value)
-    }
-
     #[inline]
     pub(super) fn set(&mut self, value: u64) -> Result<(), RangeBoundError<MIN, MAX>> {
         Self::is_valid(value)?;
         self.0 = value;
         Ok(())
-    }
-
-    /// Set a value without checking the range constraints.
-    ///
-    /// User must guarantee that provided `value` is within inclusive range of
-    /// `Self::MIN` <= `value` <= `Self::MAX`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if constraints are no met.
-    #[inline]
-    pub(super) fn set_infallible(&mut self, value: u64) {
-        assert!(Self::MIN <= value && value <= Self::MAX);
-        self.0 = value;
     }
 
     #[inline]
@@ -80,17 +52,17 @@ impl<const MIN: u64, const MAX: u64, const DEF: u64> ConstrainedU64<MIN, MAX, DE
     pub(super) fn get(&self) -> u64 {
         self.0
     }
+}
 
-    #[cfg(test)]
+impl<const DEF: u64> ConstrainedU64<{ u64::MIN }, { u64::MAX }, DEF> {
     #[inline]
-    fn min() -> Self {
-        Self(Self::MIN)
+    pub(super) fn new_infallible(value: u64) -> Self {
+        Self(value)
     }
 
-    #[cfg(test)]
     #[inline]
-    fn max() -> Self {
-        Self(Self::MAX)
+    pub(super) fn set_infallible(&mut self, value: u64) {
+        self.0 = value;
     }
 }
 
@@ -119,7 +91,6 @@ pub(super) enum RangeBoundError<const MIN: u64, const MAX: u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::panic;
 
     #[test]
     fn default_returns_def_value() {
@@ -210,17 +181,48 @@ mod tests {
     }
 
     #[test]
+    fn new_fails_with_invalid_input() {
+        type LowerMinGreaterMax = ConstrainedU64<1, { u64::MAX - 1 }>;
+
+        let inputs = [LowerMinGreaterMax::MIN - 1, LowerMinGreaterMax::MAX + 1];
+
+        for input in inputs {
+            match LowerMinGreaterMax::new(input) {
+                Err(_) => (),
+                Ok(_) => panic!("new must fail with out of range input"),
+            }
+        }
+    }
+
+    #[test]
     fn set_succeeds_with_valid_input() {
         type GreaterEqMinLowerEqMax = ConstrainedU64<0, { u64::MAX }>;
 
-        let input = GreaterEqMinLowerEqMax::max();
-        let mut test = GreaterEqMinLowerEqMax::min();
+        let inputs = [GreaterEqMinLowerEqMax::MIN, GreaterEqMinLowerEqMax::MAX];
+        let mut test = GreaterEqMinLowerEqMax::default();
 
-        match test.set(input.get()) {
-            Ok(_) => {
-                assert_eq!(input.get(), test.get(), "must have the same value as valid input")
+        for input in inputs {
+            match test.set(input) {
+                Ok(_) => {
+                    assert_eq!(input, test.get(), "must have the same value as valid input")
+                }
+                Err(_) => panic!("set must succeed with valid input"),
             }
-            Err(_) => panic!("must succeed with valid input"),
+        }
+    }
+
+    #[test]
+    fn set_fails_with_invalid_input() {
+        type LowerMinGreaterMax = ConstrainedU64<1, { u64::MAX - 1 }>;
+
+        let inputs = [LowerMinGreaterMax::MIN - 1, LowerMinGreaterMax::MAX + 1];
+        let mut test = LowerMinGreaterMax::default();
+
+        for input in inputs {
+            match test.set(input) {
+                Err(_) => (),
+                Ok(_) => panic!("set must fail with invalid input"),
+            }
         }
     }
 
@@ -259,7 +261,11 @@ mod tests {
     fn available_succeeds_greater_than_min_lower_or_equal_to_max() {
         type GreaterMinLowerEqMax = ConstrainedU64<0, { u64::MAX }>;
 
-        let inputs = [GreaterMinLowerEqMax::MAX, GreaterMinLowerEqMax::MIN + 1];
+        let inputs = [
+            GreaterMinLowerEqMax::MAX,
+            GreaterMinLowerEqMax::MAX - 1,
+            GreaterMinLowerEqMax::MIN + 1,
+        ];
 
         for input in inputs {
             match GreaterMinLowerEqMax::available(input) {
@@ -285,27 +291,6 @@ mod tests {
         }
     }
 
-    // #[cfg(panic = "unwind")]
-    #[test]
-    fn new_infallible_panics_out_of_bound_input() {
-        type OutMinMaxBounds = ConstrainedU64<1, { u64::MAX - 1 }>;
-
-        let inputs = [OutMinMaxBounds::MIN - 1, OutMinMaxBounds::MAX + 1];
-
-        for input in inputs {
-            panic::set_hook(Box::new(|_| {}));
-            match panic::catch_unwind(|| {
-                OutMinMaxBounds::new_infallible(input);
-            }) {
-                Err(_) => (),
-                Ok(_) => {
-                    let _ = panic::take_hook();
-                    panic!("out of bound input should panic on ConstrainedU64::new_infallible")
-                }
-            }
-        }
-    }
-
     #[test]
     fn new_infallible_succeeds_valid_input() {
         type GreaterEqMinLowerEqMax = ConstrainedU64<0, { u64::MAX }>;
@@ -318,25 +303,16 @@ mod tests {
         }
     }
 
-    // #[cfg(panic = "unwind")]
     #[test]
-    fn set_infallible_panics_out_of_bound_input() {
-        type OutMinMaxBounds = ConstrainedU64<1, { u64::MAX - 1 }>;
+    fn set_infallible_succeeds_valid_input() {
+        type GreaterEqMinLowerEqMax = ConstrainedU64<0, { u64::MAX }>;
 
-        let inputs = [OutMinMaxBounds::MIN - 1, OutMinMaxBounds::MAX + 1];
+        let inputs = [GreaterEqMinLowerEqMax::MIN, GreaterEqMinLowerEqMax::MAX];
+        let mut constrained = GreaterEqMinLowerEqMax::default();
 
         for input in inputs {
-            panic::set_hook(Box::new(|_| {}));
-            let mut constrained = OutMinMaxBounds::default();
-            match panic::catch_unwind(move || {
-                constrained.set_infallible(input);
-            }) {
-                Err(_) => (),
-                Ok(_) => {
-                    let _ = panic::take_hook();
-                    panic!("out of bound input should panic on ConstrainedU64::set_infallible")
-                }
-            }
+            constrained.set_infallible(input);
+            assert_eq!(input, constrained.get())
         }
     }
 }
